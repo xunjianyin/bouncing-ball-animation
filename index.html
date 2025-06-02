@@ -3,169 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bouncing Ball - Full Screen, Sound Defaults & Readme</title>
+    <title>Bouncing Ball - Robust Sound Scheduling</title>
     <script src="https://cdn.tailwindcss.com"></script> <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
-        html, body { 
-            width: 100%; 
-            height: 100%; 
-            margin: 0; 
-            padding: 0; 
-            overflow: hidden; 
-            background-color: #111827; 
-            font-family: 'Inter', sans-serif; 
-        }
-        #animationCanvas { 
-            position: fixed; 
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: block; 
-            background-color: #000; 
-        }
-        
-        #startAudioButton { 
-            position: absolute; 
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 40; 
-            background-color: #10B981; 
-            color: white; padding: 15px 25px; border: none; border-radius: 8px; cursor: pointer; font-size: 1.1em;
-            transition: background-color 0.2s;
-        }
+        html, body { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #111827; font-family: 'Inter', sans-serif; }
+        #animationCanvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: block; background-color: #000; cursor: crosshair; }
+        #startAudioButton { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 40; background-color: #10B981; color: white; padding: 15px 25px; border: none; border-radius: 8px; cursor: pointer; font-size: 1.1em; transition: background-color 0.2s; }
         #startAudioButton:hover { background-color: #059669; }
         #startAudioButton.hidden { display: none; }
-
-        #toggleControlsButton {
-            position: fixed; 
-            top: 10px;
-            left: 10px;
-            z-index: 30; 
-            background-color: #4F46E5;
-            color: white;
-            padding: 8px 12px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.2s, left 0.3s ease-in-out;
-        }
-        #toggleControlsButton.hidden { display: none; }
+        #toggleControlsButton { position: fixed; top: 10px; left: 10px; z-index: 30; background-color: #4F46E5; color: white; padding: 8px 12px; border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.2s, left 0.3s ease-in-out, opacity 0.3s; }
+        #toggleControlsButton.hidden, #readmeButton.hidden, #exitZenModeButton.hidden { display: none; }
         #toggleControlsButton:hover { background-color: #4338CA; }
-
-        .controls { 
-            position: fixed; 
-            top: 55px; 
-            left: 10px; 
-            background-color: rgba(40, 40, 50, 0.9); 
-            padding: 15px; 
-            border-radius: 10px; 
-            color: white; 
-            font-size: 0.85em; 
-            z-index: 20; 
-            max-height: calc(100vh - 75px); 
-            overflow-y: auto; 
-            border: 1px solid rgba(255,255,255,0.2);
-            width: 230px; 
-            transform: translateX(0%);
-            transition: transform 0.3s ease-in-out;
-        }
+        .controls { position: fixed; top: 55px; left: 10px; background-color: rgba(40, 40, 50, 0.92); padding: 15px; border-radius: 10px; color: white; font-size: 0.8em; z-index: 20; max-height: calc(100vh - 75px); overflow-y: auto; border: 1px solid rgba(255,255,255,0.2); width: 250px; transform: translateX(0%); transition: transform 0.3s ease-in-out, opacity 0.3s; }
         .controls.collapsed { transform: translateX(-110%); }
-        .controls.hidden { display: none; }
+        .controls.hidden-via-zen { opacity: 0; pointer-events: none; transform: translateX(-110%);}
+        #toggleControlsButton.hidden-via-zen, #readmeButton.hidden-via-zen { opacity: 0; pointer-events: none;}
 
+
+        .controls h3 { font-size: 1.1em; margin-top: 10px; margin-bottom: 5px; color: #a5b4fc; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 3px;}
         .controls label { display: block; margin-bottom: 4px; margin-top: 8px; font-weight: 500;}
-        .controls input[type="range"], .controls select { width: 100%; box-sizing: border-box; background-color: rgba(0,0,0,0.5); color: white; border: 1px solid rgba(255,255,255,0.4); border-radius: 4px; padding: 5px; margin-bottom: 8px;}
+        .controls input[type="range"], .controls input[type="number"], .controls select { width: 100%; box-sizing: border-box; background-color: rgba(0,0,0,0.5); color: white; border: 1px solid rgba(255,255,255,0.4); border-radius: 4px; padding: 5px; margin-bottom: 8px;}
         .controls input[type="checkbox"] { margin-right: 5px; vertical-align: middle;}
         .controls .checkbox-label { display: inline; font-weight: normal; }
         .controls select option { background-color: #333; color: white; }
         .controls button { background-color: #4F46E5; color: white; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; margin-top: 15px; width: 100%; transition: background-color 0.2s; }
         .controls button:hover { background-color: #4338CA; }
-
-        /* Readme Styles */
-        #readmeButton {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            z-index: 50; 
-            background-color: #6366F1; 
-            color: white;
-            padding: 6px 10px;
-            border: none;
-            border-radius: 50%; 
-            cursor: pointer;
-            font-size: 1.1em;
-            font-weight: bold;
-            width: 36px;
-            height: 36px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background-color 0.2s;
-        }
-        #readmeButton.hidden { display: none; }
+        #readmeButton { position: fixed; top: 10px; right: 10px; z-index: 50; background-color: #6366F1; color: white; padding: 6px 10px; border: none; border-radius: 50%; cursor: pointer; font-size: 1.1em; font-weight: bold; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; transition: background-color 0.2s, opacity 0.3s; }
         #readmeButton:hover { background-color: #4F46E5; }
-
-        #readmeModal {
-            display: none; /* Hidden by default - THIS IS THE FIX */
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.75); 
-            z-index: 100; 
-            /* display: flex; */ /* Removed from default, handled by .active */
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-        #readmeModal.active { display: flex; } /* Class to show modal */
-
-        #readmeContent {
-            background-color: #1e293b; 
-            color: #cbd5e1; 
-            padding: 25px 35px;
-            border-radius: 12px;
-            max-width: 700px;
-            width: 90%;
-            max-height: 85vh;
-            overflow-y: auto;
-            position: relative;
-            box-shadow: 0 15px 30px rgba(0,0,0,0.6);
-            border: 1px solid rgba(255,255,255,0.1);
-            line-height: 1.7;
-        }
-        #readmeContent h2 {
-            color: #818cf8; 
-            font-size: 1.8em;
-            margin-top: 0;
-            margin-bottom: 20px;
-            text-align: center;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            padding-bottom: 10px;
-        }
-        #readmeContent p {
-            margin-bottom: 15px;
-            font-size: 0.95em;
-        }
-        #readmeContent strong { color: #a5b4fc; }
-        #readmeContent ul { list-style: disc; margin-left: 20px; margin-bottom: 15px;}
-        #readmeContent li { margin-bottom: 8px; }
-        #closeReadmeButton {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            background: none;
-            border: none;
-            color: #94a3b8; 
-            font-size: 2em;
-            cursor: pointer;
-            line-height: 1;
-            padding: 0;
-        }
+        #readmeModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.75); z-index: 100; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
+        #readmeModal.active { display: flex; }
+        #readmeContent { background-color: #1e293b; color: #cbd5e1; padding: 25px 35px; border-radius: 12px; max-width: 700px; width: 90%; max-height: 85vh; overflow-y: auto; position: relative; box-shadow: 0 15px 30px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1); line-height: 1.7; }
+        #readmeContent h2 { color: #818cf8; font-size: 1.8em; margin-top: 0; margin-bottom: 20px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
+        #readmeContent p { margin-bottom: 15px; font-size: 0.95em; } #readmeContent strong { color: #a5b4fc; } #readmeContent ul { list-style: disc; margin-left: 20px; margin-bottom: 15px;} #readmeContent li { margin-bottom: 8px; }
+        #closeReadmeButton { position: absolute; top: 15px; right: 15px; background: none; border: none; color: #94a3b8; font-size: 2em; cursor: pointer; line-height: 1; padding: 0; }
         #closeReadmeButton:hover { color: #e2e8f0; }
+
+        #enterZenModeButton { background-color: #065f46; margin-top: 20px; } 
+        #enterZenModeButton:hover { background-color: #047857; }
+        #exitZenModeButton { position: fixed; bottom: 15px; right: 15px; z-index: 60; background-color: rgba(79, 70, 229, 0.7); color: white; padding: 8px 12px; border: 1px solid rgba(255,255,255,0.3); border-radius: 5px; cursor: pointer; font-size: 0.8em; transition: background-color 0.2s; }
+        #exitZenModeButton:hover { background-color: rgba(67, 56, 202, 0.9); }
 
     </style>
 </head>
@@ -175,81 +51,56 @@
     <button id="readmeButton" class="hidden">?</button> 
     <canvas id="animationCanvas"></canvas>
     <div class="controls hidden"> 
+        <h3>Setup</h3>
+        <label for="numBallsInput">Number of Balls (1-5): <span id="numBallsValue">1</span></label>
+        <input type="number" id="numBallsInput" min="1" max="5" value="1">
+
+        <h3>Core Physics</h3>
         <label for="gravitySlider">Gravity: <span id="gravityValue">0.1</span></label>
         <input type="range" id="gravitySlider" min="0" max="1" step="0.01" value="0.1">
         <label for="speedBoostSlider">Speed Boost (Inside): <span id="speedBoostValue">1.05</span></label>
         <input type="range" id="speedBoostSlider" min="1" max="1.5" step="0.01" value="1.05">
+        <label for="breakthroughSpeedSlider">Breakthrough Speed: <span id="breakthroughSpeedValue">25</span></label>
+        <input type="range" id="breakthroughSpeedSlider" min="10" max="50" step="1" value="25">
+        <label for="lineTensionSlider">Line Tension: <span id="lineTensionValue">0.0005</span></label>
+        <input type="range" id="lineTensionSlider" min="0.00001" max="0.005" step="0.00001" value="0.0005">
+        <label for="dampingFactorOutsideSlider">Outside Damping: <span id="dampingFactorOutsideValue">0.997</span></label>
+        <input type="range" id="dampingFactorOutsideSlider" min="0.950" max="0.999" step="0.001" value="0.997">
+        
+        <h3>Interaction</h3>
+        <div><input type="checkbox" id="clickPushToggle" checked><label for="clickPushToggle" class="checkbox-label">Enable Click Push</label></div>
+
+        <h3>Visual Options</h3>
+        <div><input type="checkbox" id="gradientBgToggle"><label for="gradientBgToggle" class="checkbox-label">Gradient Background</label></div>
+        <div><input type="checkbox" id="starfieldToggle"><label for="starfieldToggle" class="checkbox-label">Starfield</label></div>
+        <div><input type="checkbox" id="ballTrailToggle"><label for="ballTrailToggle" class="checkbox-label">Ball Trail</label></div>
+        <div><input type="checkbox" id="ballGlowToggle"><label for="ballGlowToggle" class="checkbox-label">Ball Glow</label></div>
+        <div><input type="checkbox" id="lineGlowToggle"><label for="lineGlowToggle" class="checkbox-label">Line Glow</label></div>
+        <div><input type="checkbox" id="pulsatingBoundaryToggle"><label for="pulsatingBoundaryToggle" class="checkbox-label">Pulsating Boundary</label></div>
+        <div><input type="checkbox" id="impactSparklesToggle"><label for="impactSparklesToggle" class="checkbox-label">Impact Sparkles</label></div>
+        <div><input type="checkbox" id="thickenLinesToggle" checked><label for="thickenLinesToggle" class="checkbox-label">Lines Get Thicker</label></div>
+        <div><input type="checkbox" id="fadeLinesToggle"><label for="fadeLinesToggle" class="checkbox-label">Fade Old Lines</label></div>
+        <div><input type="checkbox" id="speedLineColorToggle"><label for="speedLineColorToggle" class="checkbox-label">Speed-Based Line Color</label></div>
+
+
+        <h3>Sound Options</h3>
         <label for="volumeSlider">Master Volume: <span id="volumeValue">0.5</span></label>
         <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.5">
-        <div>
-            <input type="checkbox" id="thickenLinesToggle" checked>
-            <label for="thickenLinesToggle" class="checkbox-label">Lines Get Thicker</label>
-        </div>
         <label for="musicStyleSelect">Music Style:</label>
-        <select id="musicStyleSelect">
-            <option value="cosmicArp">Cosmic Arp</option><option value="ambientPad">Ambient Pad</option><option value="minimalBeat">Minimal Beat</option><option value="none">None</option>
-        </select>
+        <select id="musicStyleSelect"><option value="cosmicArp">Cosmic Arp</option><option value="ambientPad">Ambient Pad</option><option value="minimalBeat">Minimal Beat</option><option value="none">None</option></select>
         <label for="impactSoundSelect">Impact Sound (Inside):</label>
-        <select id="impactSoundSelect">
-            <option value="crispNoise">Crisp Noise</option><option value="metallicHit">Metallic Hit</option><option value="synthBlip">Synth Blip</option><option value="none">None</option>
-        </select>
+        <select id="impactSoundSelect"><option value="crispNoise">Crisp Noise</option><option value="metallicHit">Metallic Hit</option><option value="synthBlip">Synth Blip</option><option value="none">None</option></select>
         <label for="breakthroughSoundSelect">Breakthrough Sound:</label>
-        <select id="breakthroughSoundSelect">
-            <option value="warpingSquare">Warping Square</option><option value="risingPitch">Rising Pitch</option><option value="quickWhoosh">Quick Whoosh</option><option value="none">None</option>
-        </select>
+        <select id="breakthroughSoundSelect"><option value="warpingSquare">Warping Square</option><option value="risingPitch">Rising Pitch</option><option value="quickWhoosh">Quick Whoosh</option><option value="none">None</option></select>
         <label for="reentrySoundSelect">Re-entry Sound:</label>
-        <select id="reentrySoundSelect">
-            <option value="softThump">Soft Thump</option><option value="gentleChime">Gentle Chime</option><option value="subtlePop">Subtle Pop</option><option value="none">None</option>
-        </select>
+        <select id="reentrySoundSelect"><option value="softThump">Soft Thump</option><option value="gentleChime">Gentle Chime</option><option value="subtlePop">Subtle Pop</option><option value="none">None</option></select>
+        
         <button id="resetButton">Reset Animation</button>
+        <button id="enterZenModeButton">Enter Zen Mode</button>
     </div>
+    <button id="exitZenModeButton" class="hidden">Exit Zen (Esc)</button>
 
-    <div id="readmeModal">
-        <div id="readmeContent">
-            <button id="closeReadmeButton">&times;</button>
-            <h2>The Ballad of the Bouncing Orb</h2>
-            <p>
-                Within this digital expanse, a lone orb takes its flight,<br>
-                A point of light, a nascent star, against the endless night.<br>
-                It starts its journey, soft and slow, a whisper in the void,<br>
-                Then meets the world's unseen embrace, its destiny deployed.
-            </p>
-            <p>
-                With every touch, a vibrant thread, a memory takes its form,<br>
-                Connecting impact's fleeting kiss, weathering every storm.<br>
-                These lines, they weave a tapestry, a geometric art,<br>
-                A growing web of choices made, a beating, visual heart.
-            </p>
-            <p>
-                The <strong>Force of Gravity</strong>, a constant, gentle hand,<br>
-                Guides down the orb, across the digital sand.<br>
-                Yet speed it gains with every bounce, a quickening desire,<br>
-                Fueled by the boundary's firm reply, setting its soul afire.
-            </p>
-            <p>
-                And when its spirit burns too bright, its velocity too keen,<br>
-                It shatters the confining round, a world unseen, serene.<br>
-                Outside it soars, a golden gleam, on freedom's heady air,<br>
-                But tethers of its past still pull, a gentle, binding snare.
-            </p>
-            <p>
-                Each line, a string, now hums with tension, yearning for return,<br>
-                While cosmic drag its fervor saps, a lesson it must learn.<br>
-                Pulled back it comes, by gravity and memories it has spun,<br>
-                To dance again within the bounds, its outer journey done.
-            </p>
-            <p>
-                A <strong>Symphony of Sound</strong> accompanies its play,<br>
-                From gentle blips to cosmic whoosh, lighting its vibrant way.<br>
-                You, the observer, hold the reins, the maestro of this scene,<br>
-                Adjust the forces, choose the tunes, what will your canvas mean?
-            </p>
-            <p>
-                So watch it dance, this point of light, its story to unfold,<br>
-                A ballet of physics and of chance, more precious than pure gold.
-            </p>
-        </div>
-    </div>
+    <div id="readmeModal"> <div id="readmeContent"><button id="closeReadmeButton">&times;</button><h2>The Ballad of the Bouncing Orb</h2> <p>Within this digital expanse, a lone orb takes its flight,<br> A point of light, a nascent star, against the endless night.<br> It starts its journey, soft and slow, a whisper in the void,<br> Then meets the world's unseen embrace, its destiny deployed. </p> <p>With every touch, a vibrant thread, a memory takes its form,<br> Connecting impact's fleeting kiss, weathering every storm.<br> These lines, they weave a tapestry, a geometric art,<br> A growing web of choices made, a beating, visual heart. </p> <p>The <strong>Force of Gravity</strong>, a constant, gentle hand,<br> Guides down the orb, across the digital sand.<br> Yet speed it gains with every bounce, a quickening desire,<br> Fueled by the boundary's firm reply, setting its soul afire. </p> <p>And when its spirit burns too bright, its velocity too keen,<br> It shatters the confining round, a world unseen, serene.<br> Outside it soars, a golden gleam, on freedom's heady air,<br> But tethers of its past still pull, a gentle, binding snare. </p> <p>Each line, a string, now hums with tension, yearning for return,<br> While cosmic drag its fervor saps, a lesson it must learn.<br> Pulled back it comes, by gravity and memories it has spun,<br> To dance again within the bounds, its outer journey done. </p> <p>A <strong>Symphony of Sound</strong> accompanies its play,<br> From gentle blips to cosmic whoosh, lighting its vibrant way.<br> You, the observer, hold the reins, the maestro of this scene,<br> Adjust the forces, choose the tunes, what will your canvas mean? </p> <p>So watch it dance, this point of light, its story to unfold,<br> A ballet of physics and of chance, more precious than pure gold. </p></div></div>
 
     <script>
         const canvas = document.getElementById('animationCanvas');
@@ -258,109 +109,407 @@
         const startAudioButton = document.getElementById('startAudioButton');
         const toggleControlsButton = document.getElementById('toggleControlsButton');
         const thickenLinesToggle = document.getElementById('thickenLinesToggle');
-        
         const readmeButton = document.getElementById('readmeButton');
         const readmeModal = document.getElementById('readmeModal');
         const closeReadmeButton = document.getElementById('closeReadmeButton');
+        const enterZenModeButton = document.getElementById('enterZenModeButton'); 
+        const exitZenModeButton = document.getElementById('exitZenModeButton');   
+
+        // Setup Controls
+        const numBallsInput = document.getElementById('numBallsInput');
+        const numBallsValue = document.getElementById('numBallsValue');
+
+        const gradientBgToggle = document.getElementById('gradientBgToggle');
+        const starfieldToggle = document.getElementById('starfieldToggle'); 
+        const ballTrailToggle = document.getElementById('ballTrailToggle'); 
+        const ballGlowToggle = document.getElementById('ballGlowToggle');
+        const lineGlowToggle = document.getElementById('lineGlowToggle');
+        const pulsatingBoundaryToggle = document.getElementById('pulsatingBoundaryToggle');
+        const impactSparklesToggle = document.getElementById('impactSparklesToggle');
+        const fadeLinesToggle = document.getElementById('fadeLinesToggle'); 
+        const speedLineColorToggle = document.getElementById('speedLineColorToggle'); 
+        const clickPushToggle = document.getElementById('clickPushToggle'); 
+
+
+        const breakthroughSpeedSlider = document.getElementById('breakthroughSpeedSlider');
+        const breakthroughSpeedValue = document.getElementById('breakthroughSpeedValue');
+        const lineTensionSlider = document.getElementById('lineTensionSlider');
+        const lineTensionValue = document.getElementById('lineTensionValue');
+        const dampingFactorOutsideSlider = document.getElementById('dampingFactorOutsideSlider');
+        const dampingFactorOutsideValue = document.getElementById('dampingFactorOutsideValue');
 
         let animationFrameId;
         let audioInitialized = false;
+        let isZenModeActive = false; 
         let masterVolume;
-
         let musicSynths = {}, musicLoops = {}, currentMusicStyle = 'none'; 
         const initialMusicVolumes = { cosmicArp: -18, ambientPad: -22, minimalBeat: -15 };
         let impactSynths = {}, currentImpactSound = 'synthBlip'; 
         let breakthroughSoundSynths = {}, currentBreakthroughSound = 'risingPitch'; 
         let reentrySoundSynths = {}, currentReentrySound = 'subtlePop'; 
 
-        const breakthroughSpeedThreshold = 25; 
-        const lineTensionConstant = 0.0005;   
-        const dampingFactorOutside = 0.997;  
+        let breakthroughSpeedThreshold = 25; 
+        let lineTensionConstant = 0.0005;   
+        let dampingFactorOutside = 0.997;  
+        
         const defaultLineWidth = 1.5; 
-
+        const MIN_CRASH_SPEED_FOR_COLOR = 2; 
+        const MAX_CRASH_SPEED_FOR_COLOR = 30; 
         const MIN_CRASH_SPEED = 2, MAX_CRASH_SPEED = 30, MIN_CRASH_DB = -25, MAX_CRASH_DB = -3;  
+        
+        let particles = []; 
+        let stars = []; 
+        const NUM_STARS = 150; 
+        const MAX_TRAIL_POINTS = 15; 
+        
+        const MAX_OPAQUE_LINES = 30; 
+        const FADE_TRANSITION_LINES = 70; 
 
-        function initAudio() {
-            if (audioInitialized) return;
-            Tone.start().then(() => {
-                console.log("Audio context started.");
-                masterVolume = new Tone.Volume().toDestination(); 
-                uSV(); 
+        let balls = []; 
+        let ballsToThrowCount = 1; 
+        let currentThrowingBallIndex = -1; 
 
-                musicSynths.cosmicArp = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "fatsawtooth", count: 3, spread: 30 }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.5, release: 0.4 } }).connect(masterVolume); musicSynths.cosmicArp.volume.value = initialMusicVolumes.cosmicArp; const caN = ["C3", "E3", "G3", "B3", "C4", "B3", "G3", "E3"]; let caI = 0; musicLoops.cosmicArp = new Tone.Loop(t => { musicSynths.cosmicArp.triggerAttackRelease(caN[caI % caN.length], "8n", t); caI++; }, "4n");
-                musicSynths.ambientPad = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "amsine", harmonicity: 1.1, modulationType: "sine" }, envelope: { attack: 3, decay: 1, sustain: 0.8, release: 4 } }).connect(masterVolume); musicSynths.ambientPad.volume.value = initialMusicVolumes.ambientPad; const apC = [["C2", "G2", "E3"], ["A1", "E2", "C3"], ["F1", "C2", "A2"], ["D2", "A2", "F3"]]; let apI = 0; musicLoops.ambientPad = new Tone.Loop(t => { musicSynths.ambientPad.triggerAttackRelease(apC[apI % apC.length], "2m", t); apI++; }, "2m");
-                musicSynths.minimalBeat = new Tone.MonoSynth({ oscillator: { type: "pulse", width: 0.2 }, filter: { Q: 1, type: "lowpass", rolloff: -12 }, envelope: { attack: 0.01, decay: 0.05, sustain: 0.1, release: 0.2 }, filterEnvelope: { attack: 0.01, decay: 0.02, sustain: 0.3, release: 0.1, baseFrequency: 300, octaves: 3 } }).connect(masterVolume); musicSynths.minimalBeat.volume.value = initialMusicVolumes.minimalBeat; const mbP = ["C2", null, "C2", null, "G2", "G2", "C2", null]; let mbI = 0; musicLoops.minimalBeat = new Tone.Loop(t => { const n = mbP[mbI % mbP.length]; if (n) musicSynths.minimalBeat.triggerAttackRelease(n, "16n", t); mbI++; }, "8n");
-                
-                impactSynths.crispNoise = new Tone.NoiseSynth({ noise: { type: 'white' }, envelope: { attack: 0.001, decay: 0.05, sustain: 0 } }).connect(masterVolume);
-                impactSynths.metallicHit = new Tone.MetalSynth({ frequency: 150, envelope: { attack: 0.001, decay: 0.1, release: 0.05 }, harmonicity: 3.1, modulationIndex: 16, octaves: 0.5 }).connect(masterVolume);
-                impactSynths.synthBlip = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.1 } }).connect(masterVolume);
+        let isThrowing = false;
+        let throwStartX, throwStartY, currentMouseX, currentMouseY;
+        const throwStrengthFactor = 0.05; 
+        const clickPushForce = 2; 
+        const ballColors = ['#FFFFFF', '#00FFFF', '#FF00FF', '#FFFF00', '#00FF00']; 
 
-                breakthroughSoundSynths.warpingSquare = new Tone.Synth({ oscillator: {type: "fmsquare", modulationType : 'triangle', harmonicity : 0.5, modulationIndex : 10}, envelope: {attack: 0.01, decay: 0.3, sustain: 0.1, release: 0.5}, volume: -6 }).connect(masterVolume);
-                breakthroughSoundSynths.risingPitch = new Tone.Synth({ oscillator: { type: "sawtooth" }, envelope: { attack: 0.01, decay: 0.4, sustain: 0, release: 0.1 }, volume: -8 }).connect(masterVolume); 
-                breakthroughSoundSynths.quickWhoosh = new Tone.NoiseSynth({ noise: { type: "pink" }, envelope: { attack: 0.005, decay: 0.2, sustain: 0, release: 0.1 }, volume: -5 }).connect(masterVolume);
-                
-                reentrySoundSynths.softThump = new Tone.Synth({ oscillator: {type: "triangle8"}, envelope: {attack: 0.05, decay: 0.2, sustain: 0, release: 0.3}, volume: -9 }).connect(masterVolume);
-                reentrySoundSynths.gentleChime = new Tone.MetalSynth({frequency: 400, envelope: { attack: 0.01, decay: 0.5, release: 0.2 }, harmonicity: 5.1, modulationIndex: 8, octaves: 1.5, volume: -12 }).connect(masterVolume);
-                reentrySoundSynths.subtlePop = new Tone.MembraneSynth({ pitchDecay: 0.008, octaves: 2, oscillator: { type: "sine" }, envelope: { attack: 0.001, decay: 0.1, sustain: 0.001, release: 0.01}, volume: -10 }).connect(masterVolume);
+        // --- Robust Sound Scheduling Variables ---
+        let lastScheduledSoundTime = 0;
+        const MIN_SOUND_EVENT_GAP = 0.001; // 1ms minimum gap
+        const explicitSoundTimeOffset = 0.02; // 20ms base future offset
 
-                Tone.Transport.bpm.value = 100; Tone.Transport.start(); audioInitialized = true;
-                
-                setMusicStyle(currentMusicStyle); 
-                setImpactSound(currentImpactSound); 
-                setBreakthroughSoundChoice(currentBreakthroughSound); 
-                setReentrySoundChoice(currentReentrySound); 
 
-                startAudioButton.classList.add('hidden'); 
-                controlsDiv.classList.remove('hidden'); 
-                toggleControlsButton.classList.remove('hidden'); 
-                readmeButton.classList.remove('hidden'); 
-                rA(); 
-            }).catch(e => { console.error("Error starting Tone.js:", e); startAudioButton.classList.add('hidden'); controlsDiv.classList.remove('hidden'); toggleControlsButton.classList.remove('hidden'); readmeButton.classList.remove('hidden'); rA(); });
+        function hexToRgb(hex) { const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex); return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : null; }
+        function rgbStringToComponents(rgbString) { const match = rgbString.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/); return match ? { r: parseInt(match[1]), g: parseInt(match[2]), b: parseInt(match[3]), a: match[4] ? parseFloat(match[4]) : 1 } : null; }
+        function hslToRgbString(h, s, l) { s /= 100; l /= 100; const k = n => (n + h / 30) % 12; const a = s * Math.min(l, 1 - l); const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1))); const r = Math.round(255 * f(0)); const g = Math.round(255 * f(8)); const b = Math.round(255 * f(4)); return `rgb(${r},${g},${b})`; }
+        function gRC(){const r=Math.floor(Math.random()*200+55),g=Math.floor(Math.random()*200+55),b=Math.floor(Math.random()*200+55);return`rgb(${r},${g},${b})`;}
+
+
+        function initAudio() { /* ... (Audio Init - same as before, condensed) ... */ if(audioInitialized)return;Tone.start().then(()=>{console.log("Audio context started.");masterVolume=new Tone.Volume().toDestination();uSV();musicSynths.cosmicArp=new Tone.PolySynth(Tone.Synth,{oscillator:{type:"fatsawtooth",count:3,spread:30},envelope:{attack:0.01,decay:0.1,sustain:0.5,release:0.4}}).connect(masterVolume);musicSynths.cosmicArp.volume.value=initialMusicVolumes.cosmicArp;const caN=["C3","E3","G3","B3","C4","B3","G3","E3"];let caI=0;musicLoops.cosmicArp=new Tone.Loop(t=>{musicSynths.cosmicArp.triggerAttackRelease(caN[caI%caN.length],"8n",t);caI++;},"4n");musicSynths.ambientPad=new Tone.PolySynth(Tone.Synth,{oscillator:{type:"amsine",harmonicity:1.1,modulationType:"sine"},envelope:{attack:3,decay:1,sustain:0.8,release:4}}).connect(masterVolume);musicSynths.ambientPad.volume.value=initialMusicVolumes.ambientPad;const apC=[["C2","G2","E3"],["A1","E2","C3"],["F1","C2","A2"],["D2","A2","F3"]];let apI=0;musicLoops.ambientPad=new Tone.Loop(t=>{musicSynths.ambientPad.triggerAttackRelease(apC[apI%apC.length],"2m",t);apI++;},"2m");musicSynths.minimalBeat=new Tone.MonoSynth({oscillator:{type:"pulse",width:0.2},filter:{Q:1,type:"lowpass",rolloff:-12},envelope:{attack:0.01,decay:0.05,sustain:0.1,release:0.2},filterEnvelope:{attack:0.01,decay:0.02,sustain:0.3,release:0.1,baseFrequency:300,octaves:3}}).connect(masterVolume);musicSynths.minimalBeat.volume.value=initialMusicVolumes.minimalBeat;const mbP=["C2",null,"C2",null,"G2","G2","C2",null];let mbI=0;musicLoops.minimalBeat=new Tone.Loop(t=>{const n=mbP[mbI%mbP.length];if(n)musicSynths.minimalBeat.triggerAttackRelease(n,"16n",t);mbI++;},"8n");impactSynths.crispNoise=new Tone.NoiseSynth({noise:{type:'white'},envelope:{attack:0.001,decay:0.05,sustain:0}}).connect(masterVolume);impactSynths.metallicHit=new Tone.MetalSynth({frequency:150,envelope:{attack:0.001,decay:0.1,release:0.05},harmonicity:3.1,modulationIndex:16,octaves:0.5}).connect(masterVolume);impactSynths.synthBlip=new Tone.Synth({oscillator:{type:'triangle'},envelope:{attack:0.001,decay:0.05,sustain:0,release:0.1}}).connect(masterVolume);breakthroughSoundSynths.warpingSquare=new Tone.Synth({oscillator:{type:"fmsquare",modulationType:'triangle',harmonicity:0.5,modulationIndex:10},envelope:{attack:0.01,decay:0.3,sustain:0.1,release:0.5},volume:-6}).connect(masterVolume);breakthroughSoundSynths.risingPitch=new Tone.Synth({oscillator:{type:"sawtooth"},envelope:{attack:0.01,decay:0.4,sustain:0,release:0.1},volume:-8}).connect(masterVolume);breakthroughSoundSynths.quickWhoosh=new Tone.NoiseSynth({noise:{type:"pink"},envelope:{attack:0.005,decay:0.2,sustain:0,release:0.1},volume:-5}).connect(masterVolume);reentrySoundSynths.softThump=new Tone.Synth({oscillator:{type:"triangle8"},envelope:{attack:0.05,decay:0.2,sustain:0,release:0.3},volume:-9}).connect(masterVolume);reentrySoundSynths.gentleChime=new Tone.MetalSynth({frequency:400,envelope:{attack:0.01,decay:0.5,release:0.2},harmonicity:5.1,modulationIndex:8,octaves:1.5,volume:-12}).connect(masterVolume);reentrySoundSynths.subtlePop=new Tone.MembraneSynth({pitchDecay:0.008,octaves:2,oscillator:{type:"sine"},envelope:{attack:0.001,decay:0.1,sustain:0.001,release:0.01},volume:-10}).connect(masterVolume);Tone.Transport.bpm.value=100;Tone.Transport.start();audioInitialized=true;setMusicStyle(currentMusicStyle);setImpactSound(currentImpactSound);setBreakthroughSoundChoice(currentBreakthroughSound);setReentrySoundChoice(currentReentrySound);startAudioButton.classList.add('hidden');controlsDiv.classList.remove('hidden');toggleControlsButton.classList.remove('hidden');readmeButton.classList.remove('hidden');rA();}).catch(e=>{console.error("Error starting Tone.js:",e);startAudioButton.classList.add('hidden');controlsDiv.classList.remove('hidden');toggleControlsButton.classList.remove('hidden');readmeButton.classList.remove('hidden');rA();}); }
+
+        function setMusicStyle(styleName) { /* ... */ Object.values(musicLoops).forEach(l=>l.stop(0)); Object.keys(musicSynths).forEach(k=>{musicSynths[k].volume.value=-Infinity;}); currentMusicStyle=styleName; document.getElementById('musicStyleSelect').value=styleName; if(styleName!=="none"&&musicLoops[styleName]&&musicSynths[styleName]){musicSynths[styleName].volume.value=initialMusicVolumes[styleName]; musicLoops[styleName].start(0);} }
+        function setImpactSound(soundName) { /* ... */ currentImpactSound=soundName; document.getElementById('impactSoundSelect').value=soundName; }
+        function setBreakthroughSoundChoice(soundName) { /* ... */ currentBreakthroughSound = soundName; document.getElementById('breakthroughSoundSelect').value = soundName; }
+        function setReentrySoundChoice(soundName) { /* ... */ currentReentrySound = soundName; document.getElementById('reentrySoundSelect').value = soundName; }
+        
+        function getScheduledSoundTime() {
+            let scheduledTime = Tone.now() + explicitSoundTimeOffset;
+            if (scheduledTime <= lastScheduledSoundTime) {
+                scheduledTime = lastScheduledSoundTime + MIN_SOUND_EVENT_GAP;
+            }
+            lastScheduledSoundTime = scheduledTime;
+            return scheduledTime;
         }
 
-        function setMusicStyle(styleName) { Object.values(musicLoops).forEach(l=>l.stop(0)); Object.keys(musicSynths).forEach(k=>{musicSynths[k].volume.value=-Infinity;}); currentMusicStyle=styleName; document.getElementById('musicStyleSelect').value=styleName; if(styleName!=="none"&&musicLoops[styleName]&&musicSynths[styleName]){musicSynths[styleName].volume.value=initialMusicVolumes[styleName]; musicLoops[styleName].start(0);} console.log("Music set:", styleName); }
-        function setImpactSound(soundName) { currentImpactSound=soundName; document.getElementById('impactSoundSelect').value=soundName; console.log("Impact sound set:", soundName); }
-        function setBreakthroughSoundChoice(soundName) { currentBreakthroughSound = soundName; document.getElementById('breakthroughSoundSelect').value = soundName; console.log("Breakthrough sound set to:", soundName); }
-        function setReentrySoundChoice(soundName) { currentReentrySound = soundName; document.getElementById('reentrySoundSelect').value = soundName; console.log("Re-entry sound set to:", soundName); }
-        
-        function playNormalImpactSound(speed) { if(!audioInitialized||currentImpactSound==="none"||!impactSynths[currentImpactSound])return; const aS=impactSynths[currentImpactSound]; const sR=Math.min(1,Math.max(0,(speed-MIN_CRASH_SPEED)/(MAX_CRASH_SPEED-MIN_CRASH_SPEED))); const dV=MIN_CRASH_DB+sR*(MAX_CRASH_DB-MIN_CRASH_DB); aS.volume.value=dV; if(currentImpactSound==="synthBlip")aS.triggerAttackRelease("C5","32n"); else aS.triggerAttackRelease("16n");}
-        function playBreakthroughSound() { if (!audioInitialized || currentBreakthroughSound === "none" || !breakthroughSoundSynths[currentBreakthroughSound]) return; const activeSynth = breakthroughSoundSynths[currentBreakthroughSound]; switch (currentBreakthroughSound) { case "warpingSquare": activeSynth.triggerAttackRelease("A4", "0.5n"); break; case "risingPitch": activeSynth.triggerAttack("C4"); activeSynth.frequency.rampTo("C6", 0.4); activeSynth.triggerRelease("+0.4"); break; case "quickWhoosh": activeSynth.triggerAttackRelease("0.2n"); break; } }
-        function playReentrySound() { if (!audioInitialized || currentReentrySound === "none" || !reentrySoundSynths[currentReentrySound]) return; const activeSynth = reentrySoundSynths[currentReentrySound]; switch (currentReentrySound) { case "softThump": activeSynth.triggerAttackRelease("G3", "0.3n"); break; case "gentleChime": activeSynth.triggerAttackRelease("C5", "0.5n"); break; case "subtlePop": activeSynth.triggerAttackRelease("C4", "0.1n"); break; } }
+        function playNormalImpactSound(speed) { 
+            if(!audioInitialized||currentImpactSound==="none"||!impactSynths[currentImpactSound])return; 
+            const aS=impactSynths[currentImpactSound]; 
+            const sR=Math.min(1,Math.max(0,(speed-MIN_CRASH_SPEED)/(MAX_CRASH_SPEED-MIN_CRASH_SPEED))); 
+            const dV=MIN_CRASH_DB+sR*(MAX_CRASH_DB-MIN_CRASH_DB); 
+            aS.volume.value=dV; 
+            const triggerTime = getScheduledSoundTime();
+            if(currentImpactSound==="synthBlip")aS.triggerAttackRelease("C5","32n", triggerTime); 
+            else aS.triggerAttackRelease("16n", triggerTime);
+        }
+        function playBreakthroughSound() { 
+            if (!audioInitialized || currentBreakthroughSound === "none" || !breakthroughSoundSynths[currentBreakthroughSound]) return; 
+            const activeSynth = breakthroughSoundSynths[currentBreakthroughSound]; 
+            const triggerTime = getScheduledSoundTime();
+            switch (currentBreakthroughSound) { 
+                case "warpingSquare": activeSynth.triggerAttackRelease("A4", "0.5n", triggerTime); break; 
+                case "risingPitch": 
+                    activeSynth.triggerAttack("C4", triggerTime); 
+                    activeSynth.frequency.rampTo("C6", 0.4, triggerTime); 
+                    activeSynth.triggerRelease(triggerTime + 0.4); 
+                    break; 
+                case "quickWhoosh": activeSynth.triggerAttackRelease("0.2n", triggerTime); break; 
+            } 
+        }
+        function playReentrySound() { 
+            if (!audioInitialized || currentReentrySound === "none" || !reentrySoundSynths[currentReentrySound]) return; 
+            const activeSynth = reentrySoundSynths[currentReentrySound]; 
+            const triggerTime = getScheduledSoundTime();
+            switch (currentReentrySound) { 
+                case "softThump": activeSynth.triggerAttackRelease("G3", "0.3n", triggerTime); break; 
+                case "gentleChime": activeSynth.triggerAttackRelease("C5", "0.5n", triggerTime); break; 
+                case "subtlePop": activeSynth.triggerAttackRelease("C4", "0.1n", triggerTime); break; 
+            } 
+        }
 
-        function sCD(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; if (boundary) { boundary.x = canvas.width / 2; boundary.y = canvas.height / 2; boundary.radius = Math.min(canvas.width, canvas.height) * 0.35; } }
+        function sCD(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; if (boundary) { boundary.x = canvas.width / 2; boundary.y = canvas.height / 2; boundary.radius = Math.min(canvas.width, canvas.height) * 0.35; } initStars(); }
         
-        const boundary={x:0,y:0,radius:0}; let ball={radius:8,color:'#FFFFFF',x:0,y:0,dx:0,dy:0,isOutside:false}; let lines=[]; let gravity=0.1; let speedBoostFactor=1.05;
+        const boundary={x:0,y:0,radius:0}; 
+        let gravity=0.1; let speedBoostFactor=1.05;
         const gS=document.getElementById('gravitySlider'),gV=document.getElementById('gravityValue'),sBS=document.getElementById('speedBoostSlider'),sBV=document.getElementById('speedBoostValue'),vS=document.getElementById('volumeSlider'),vV=document.getElementById('volumeValue'),mSS=document.getElementById('musicStyleSelect'),iSS=document.getElementById('impactSoundSelect'),bSS=document.getElementById('breakthroughSoundSelect'),rESS=document.getElementById('reentrySoundSelect'),rB=document.getElementById('resetButton');
-        function uSV(){if(gV&&gS){gV.textContent=parseFloat(gS.value).toFixed(2);gravity=parseFloat(gS.value);}if(sBV&&sBS){sBV.textContent=parseFloat(sBS.value).toFixed(2);speedBoostFactor=parseFloat(sBS.value);}if(vV&&vS&&masterVolume){const val=parseFloat(vS.value);vV.textContent=val.toFixed(2);if(val===0)masterVolume.volume.value=-Infinity;else masterVolume.volume.value=Tone.gainToDb(val);}}
         
-        if(gS)gS.addEventListener('input',uSV);if(sBS)sBS.addEventListener('input',uSV);if(vS)vS.addEventListener('input',uSV);if(mSS)mSS.addEventListener('change',(e)=>{if(audioInitialized)setMusicStyle(e.target.value);});if(iSS)iSS.addEventListener('change',(e)=>{if(audioInitialized)setImpactSound(e.target.value);});if(bSS)bSS.addEventListener('change',(e)=>{if(audioInitialized)setBreakthroughSoundChoice(e.target.value);});if(rESS)rESS.addEventListener('change',(e)=>{if(audioInitialized)setReentrySoundChoice(e.target.value);});if(rB)rB.addEventListener('click',()=>{if(audioInitialized)rA();});if(startAudioButton)startAudioButton.addEventListener('click',initAudio);
+        function uSV(){ 
+            if(gV&&gS){gV.textContent=parseFloat(gS.value).toFixed(2);gravity=parseFloat(gS.value);} 
+            if(sBV&&sBS){sBV.textContent=parseFloat(sBS.value).toFixed(2);speedBoostFactor=parseFloat(sBS.value);} 
+            if(vV&&vS&&masterVolume){const val=parseFloat(vS.value);vV.textContent=val.toFixed(2);if(val===0)masterVolume.volume.value=-Infinity;else masterVolume.volume.value=Tone.gainToDb(val);} 
+            if(breakthroughSpeedValue && breakthroughSpeedSlider) { breakthroughSpeedValue.textContent = breakthroughSpeedSlider.value; breakthroughSpeedThreshold = parseFloat(breakthroughSpeedSlider.value); } 
+            if(lineTensionValue && lineTensionSlider) { const tensionVal = parseFloat(lineTensionSlider.value); lineTensionValue.textContent = tensionVal.toExponential(1); lineTensionConstant = tensionVal; } 
+            if(dampingFactorOutsideValue && dampingFactorOutsideSlider) { const dampingVal = parseFloat(dampingFactorOutsideSlider.value); dampingFactorOutsideValue.textContent = dampingVal.toFixed(3); dampingFactorOutside = dampingVal; }
+            if(numBallsValue && numBallsInput) {
+                let count = parseInt(numBallsInput.value);
+                if (isNaN(count) || count < 1) count = 1;
+                if (count > 5) count = 5;
+                numBallsInput.value = count; 
+                numBallsValue.textContent = count;
+                ballsToThrowCount = count;
+            }
+        }
+        
+        if(gS)gS.addEventListener('input',uSV);if(sBS)sBS.addEventListener('input',uSV);if(vS)vS.addEventListener('input',uSV); if(breakthroughSpeedSlider) breakthroughSpeedSlider.addEventListener('input', uSV); if(lineTensionSlider) lineTensionSlider.addEventListener('input', uSV); if(dampingFactorOutsideSlider) dampingFactorOutsideSlider.addEventListener('input', uSV);
+        if(numBallsInput) numBallsInput.addEventListener('change', uSV); 
+
+        if(mSS)mSS.addEventListener('change',(e)=>{if(audioInitialized)setMusicStyle(e.target.value);});if(iSS)iSS.addEventListener('change',(e)=>{if(audioInitialized)setImpactSound(e.target.value);});if(bSS)bSS.addEventListener('change',(e)=>{if(audioInitialized)setBreakthroughSoundChoice(e.target.value);});if(rESS)rESS.addEventListener('change',(e)=>{if(audioInitialized)setReentrySoundChoice(e.target.value);});if(rB)rB.addEventListener('click',()=>{if(audioInitialized)rA();});if(startAudioButton)startAudioButton.addEventListener('click',initAudio);
         if(toggleControlsButton) toggleControlsButton.addEventListener('click', () => { controlsDiv.classList.toggle('collapsed'); if (controlsDiv.classList.contains('collapsed')) { toggleControlsButton.textContent = 'Show Controls'; } else { toggleControlsButton.textContent = 'Hide Controls'; } });
+        if(readmeButton) readmeButton.addEventListener('click', () => { if(readmeModal) readmeModal.classList.add('active'); });
+        if(closeReadmeButton) closeReadmeButton.addEventListener('click', () => { if(readmeModal) readmeModal.classList.remove('active'); });
+        if(readmeModal) readmeModal.addEventListener('click', (event) => { if (event.target === readmeModal) { readmeModal.classList.remove('active'); } });
+        function enterZen() { isZenModeActive = true; controlsDiv.classList.add('hidden-via-zen'); toggleControlsButton.classList.add('hidden-via-zen'); readmeButton.classList.add('hidden-via-zen'); exitZenModeButton.classList.remove('hidden'); }
+        function exitZen() { isZenModeActive = false; controlsDiv.classList.remove('hidden-via-zen'); if (!controlsDiv.classList.contains('collapsed')) { toggleControlsButton.classList.remove('hidden-via-zen'); } else { toggleControlsButton.textContent = 'Show Controls'; toggleControlsButton.classList.remove('hidden-via-zen'); } readmeButton.classList.remove('hidden-via-zen'); exitZenModeButton.classList.add('hidden'); }
+        if(enterZenModeButton) enterZenModeButton.addEventListener('click', enterZen);
+        if(exitZenModeButton) exitZenModeButton.addEventListener('click', exitZen);
+        window.addEventListener('keydown', (event) => { if (event.key === 'Escape' && isZenModeActive) { exitZen(); } });
+
+        function createBall(x, y, color) { return { x: x, y: y, dx: 0, dy: 0, radius: 8, color: color, isOutside: false, lines: [], ballTrailPoints: [], awaitingThrow: true }; }
         
-        if(readmeButton) readmeButton.addEventListener('click', () => {
-            if(readmeModal) readmeModal.classList.add('active');
-        });
-        if(closeReadmeButton) closeReadmeButton.addEventListener('click', () => {
-            if(readmeModal) readmeModal.classList.remove('active');
-        });
-        if(readmeModal) readmeModal.addEventListener('click', (event) => {
-            if (event.target === readmeModal) { 
-                readmeModal.classList.remove('active');
+        function rA(){ 
+            if(animationFrameId)cancelAnimationFrame(animationFrameId); 
+            sCD(); 
+            uSV(); 
+
+            balls = [];
+            const initialOffset = 20; 
+            for (let i = 0; i < ballsToThrowCount; i++) {
+                balls.push(createBall(
+                    boundary.x + (i > 0 ? (i % 2 === 0 ? -initialOffset * (Math.floor(i/2)+1) : initialOffset * (Math.floor(i/2)+1) ) : 0), 
+                    boundary.y + (i > 0 ? (i % 3 === 0 ? -initialOffset : initialOffset ) : 0), 
+                    ballColors[i % ballColors.length]
+                ));
+            }
+            
+            if (balls.length > 0) {
+                ballsToThrow = 1; 
+                currentThrowingBallIndex = 0;
+                balls[0].awaitingThrow = true; 
+            } else {
+                ballsToThrow = 0;
+                currentThrowingBallIndex = -1;
+            }
+            isThrowing = false; 
+            particles=[]; 
+            lastScheduledSoundTime = 0; // Reset last scheduled sound time
+            if(audioInitialized)uSV(); 
+            animate(); 
+        }
+        
+        function initStars() { stars = []; for (let i = 0; i < NUM_STARS; i++) { stars.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, radius: Math.random() * 1.2 + 0.3, alpha: Math.random() * 0.5 + 0.3, twinkleSpeed: Math.random() * 0.02 + 0.005, twinklePhase: Math.random() * Math.PI * 2 }); } }
+        function drawStarfield() { if (!starfieldToggle || !starfieldToggle.checked) return; const now = Date.now(); stars.forEach(star => { const tV = (Math.sin(now * star.twinkleSpeed + star.twinklePhase) + 1) / 2; ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha * tV * 0.8})`; ctx.beginPath(); ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2); ctx.fill(); }); }
+        function drawBackground() { if (gradientBgToggle && gradientBgToggle.checked) { const grad = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 0, canvas.width/2, canvas.height/2, Math.max(canvas.width,canvas.height)/1.5); grad.addColorStop(0, '#0A0A2A'); grad.addColorStop(1, '#000000'); ctx.fillStyle = grad; ctx.fillRect(0,0,canvas.width,canvas.height); } else { ctx.fillStyle = '#000000'; ctx.fillRect(0,0,canvas.width,canvas.height); } }
+        function dB(){ ctx.save(); if (pulsatingBoundaryToggle && pulsatingBoundaryToggle.checked) { const pA=(Math.sin(Date.now()*0.0015)+1)/2; ctx.lineWidth=1+pA*1.5; ctx.strokeStyle=`rgba(255,255,255,${0.2+pA*0.3})`; } else { ctx.lineWidth=1; ctx.strokeStyle='rgba(255,255,255,0.3)'; } ctx.beginPath();ctx.arc(boundary.x,boundary.y,boundary.radius,0,Math.PI*2);ctx.stroke();ctx.closePath(); ctx.restore(); }
+        
+        function drawBallTrail(ball) { if (!ballTrailToggle || !ballTrailToggle.checked || ball.ballTrailPoints.length === 0) return; ctx.save(); for (let i = 0; i < ball.ballTrailPoints.length; i++) { const point = ball.ballTrailPoints[i]; const ratio = (ball.ballTrailPoints.length - i) / ball.ballTrailPoints.length; const radius = ball.radius * ratio * 0.6; const alpha = ratio * 0.5; let currentTrailColorHex = ball.isOutside ? '#FFD700' : ball.color; const rgbColor = hexToRgb(currentTrailColorHex); if (rgbColor) { if (ballGlowToggle && ballGlowToggle.checked) { ctx.shadowBlur = 5 * ratio; ctx.shadowColor = `rgba(${rgbColor.r},${rgbColor.g},${rgbColor.b}, ${alpha * 0.7})`; } else { ctx.shadowBlur = 0; } ctx.beginPath(); ctx.arc(point.x, point.y, Math.max(0.5, radius), 0, Math.PI * 2); ctx.fillStyle = `rgba(${rgbColor.r},${rgbColor.g},${rgbColor.b}, ${alpha})`; ctx.fill(); } } ctx.restore(); }
+        function drB(ball){ ctx.save(); if (ballGlowToggle && ballGlowToggle.checked) { ctx.shadowBlur=ball.isOutside?20:10; ctx.shadowColor=ball.isOutside?'#FFD700':(ball.color === '#FFFFFF' ? '#FFFFFF' : ball.color); } ctx.beginPath();ctx.arc(ball.x,ball.y,ball.radius,0,Math.PI*2);ctx.fillStyle=ball.isOutside?'#FFD700':ball.color;ctx.fill(); ctx.restore(); }
+        
+        function drL(ball){ ctx.save(); let useLineGlow = lineGlowToggle && lineGlowToggle.checked; let useFadeLines = fadeLinesToggle && fadeLinesToggle.checked; ball.lines.forEach((l, index)=>{ const originalRgb = rgbStringToComponents(l.color); if (!originalRgb) { ctx.strokeStyle = l.color; if(useLineGlow) ctx.shadowColor = l.color; } else { let currentAlpha = 1.0; if (useFadeLines) { const totalLines = ball.lines.length; const ageIndex = index; const newestNonFadingIndex = totalLines - MAX_OPAQUE_LINES -1; if (totalLines > MAX_OPAQUE_LINES) { if (ageIndex < newestNonFadingIndex - FADE_TRANSITION_LINES) { currentAlpha = 0.05; } else if (ageIndex < newestNonFadingIndex) { const progressInFadeZone = (ageIndex - (newestNonFadingIndex - FADE_TRANSITION_LINES)) / FADE_TRANSITION_LINES; currentAlpha = 0.05 + progressInFadeZone * 0.95; } } currentAlpha = Math.max(0.01, Math.min(1, currentAlpha)); } ctx.strokeStyle = `rgba(${originalRgb.r},${originalRgb.g},${originalRgb.b},${currentAlpha})`; if(useLineGlow){ ctx.shadowBlur=7; ctx.shadowColor=`rgba(${originalRgb.r},${originalRgb.g},${originalRgb.b},${currentAlpha * 0.5})`; } else { ctx.shadowBlur = 0; } } ctx.beginPath();ctx.moveTo(l.collisionPointX,l.collisionPointY);ctx.lineTo(ball.x,ball.y);ctx.lineWidth=l.lineWidth;ctx.stroke();ctx.closePath();}); ctx.restore(); }
+        function createSparkles(x,y,hexColor){ if(!impactSparklesToggle||!impactSparklesToggle.checked)return;const rgbColor=hexToRgb(hexColor);if(!rgbColor)return;const c=10+Math.floor(Math.random()*10);for(let i=0;i<c;i++){const a=Math.random()*Math.PI*2,s=1+Math.random()*3;particles.push({x:x,y:y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:20+Math.random()*20,r:rgbColor.r,g:rgbColor.g,b:rgbColor.b,radius:Math.random()*1.5+0.5});}}
+        function drawAndUpdateParticles(){ for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.x+=p.vx;p.y+=p.vy;p.vy+=0.05;p.life-=1;if(p.life<=0){particles.splice(i,1);}else{ctx.beginPath();ctx.arc(p.x,p.y,p.radius,0,Math.PI*2);ctx.fillStyle=`rgba(${p.r},${p.g},${p.b},${p.life/30})`;ctx.fill();}}}
+        
+        function drawThrowIndicator() {
+            if (ballsToThrow > 0 && ballsToThrow <= balls.length && balls[currentThrowingBallIndex] && balls[currentThrowingBallIndex].awaitingThrow) {
+                const ballToThrowObj = balls[currentThrowingBallIndex];
+                if (isThrowing) {
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.moveTo(ballToThrowObj.x, ballToThrowObj.y);
+                    ctx.lineTo(currentMouseX, currentMouseY);
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 5]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    
+                    const angle = Math.atan2(currentMouseY - ballToThrowObj.y, currentMouseX - ballToThrowObj.x);
+                    const headlen = 10;
+                    ctx.beginPath();
+                    ctx.moveTo(currentMouseX, currentMouseY);
+                    ctx.lineTo(currentMouseX - headlen * Math.cos(angle - Math.PI / 6), currentMouseY - headlen * Math.sin(angle - Math.PI / 6));
+                    ctx.lineTo(currentMouseX - headlen * Math.cos(angle + Math.PI / 6), currentMouseY - headlen * Math.sin(angle + Math.PI / 6));
+                    ctx.closePath();
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                    ctx.fill();
+                    ctx.restore();
+                } else {
+                    ctx.save();
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+                    ctx.font = "16px Arial";
+                    ctx.textAlign = "center";
+                    ctx.fillText(`Click and drag from Ball ${ballsToThrow} to throw!`, canvas.width / 2, canvas.height / 2 + 40 + (ballsToThrow-1)*20 );
+                    ctx.restore();
+                }
+            }
+        }
+
+        function uBP(ball, ballIndex){ 
+            if (ball.awaitingThrow) return;
+
+            ball.ballTrailPoints.unshift({ x: ball.x, y: ball.y }); 
+            if (ball.ballTrailPoints.length > MAX_TRAIL_POINTS) { ball.ballTrailPoints.pop(); } 
+
+            if(ball.isOutside){ball.dy+=gravity;let tFX=0,tFY=0;if(ball.lines.length>0){ball.lines.forEach(l=>{const vX=l.collisionPointX-ball.x,vY=l.collisionPointY-ball.y;const d=Math.sqrt(vX*vX+vY*vY);if(d>0.01){const fM=lineTensionConstant*d;tFX+=(vX/d)*fM;tFY+=(vY/d)*fM;}});}ball.dx+=tFX;ball.dy+=tFY;ball.dx*=dampingFactorOutside;ball.dy*=dampingFactorOutside;ball.x+=ball.dx;ball.y+=ball.dy;const dTC=Math.sqrt((ball.x-boundary.x)**2+(ball.y-boundary.y)**2);if(dTC<boundary.radius-ball.radius && (ball.dx*(ball.x-boundary.x)+ball.dy*(ball.y-boundary.y))<0){ball.isOutside=false;playReentrySound();createSparkles(ball.x,ball.y,'#4F46E5');}}else{ball.dy+=gravity;ball.x+=ball.dx;ball.y+=ball.dy;const dFC=Math.sqrt((ball.x-boundary.x)**2+(ball.y-boundary.y)**2);if(dFC+ball.radius>boundary.radius){const cS=Math.sqrt(ball.dx**2+ball.dy**2);const aTC=Math.atan2(ball.y-boundary.y,ball.x-boundary.x);const iX=boundary.x+Math.cos(aTC)*boundary.radius;const iY=boundary.y+Math.sin(aTC)*boundary.radius;let cLW=defaultLineWidth;if(thickenLinesToggle&&thickenLinesToggle.checked){cLW=1+ball.lines.length*0.025;}
+            let currentLineColor; if (speedLineColorToggle && speedLineColorToggle.checked) { const speedRatio = Math.min(1, Math.max(0, (cS - MIN_CRASH_SPEED_FOR_COLOR) / (MAX_CRASH_SPEED_FOR_COLOR - MIN_CRASH_SPEED_FOR_COLOR))); const hue = 240 - (speedRatio * 240); currentLineColor = hslToRgbString(hue, 100, 60); } else { currentLineColor = gRC(); } 
+            if(cS>breakthroughSpeedThreshold){ball.isOutside=true;playBreakthroughSound();ball.lines.push({collisionPointX:iX,collisionPointY:iY,color:currentLineColor,lineWidth:cLW});createSparkles(iX,iY,'#FFD700');ball.x=boundary.x+Math.cos(aTC)*(boundary.radius+ball.radius*0.1);ball.y=boundary.y+Math.sin(aTC)*(boundary.radius+ball.radius*0.1);}else{playNormalImpactSound(cS);ball.lines.push({collisionPointX:iX,collisionPointY:iY,color:currentLineColor,lineWidth:cLW});createSparkles(iX,iY,currentLineColor);ball.dx*=speedBoostFactor;ball.dy*=speedBoostFactor;ball.x=boundary.x+Math.cos(aTC)*(boundary.radius-ball.radius);ball.y=boundary.y+Math.sin(aTC)*(boundary.radius-ball.radius);const nVX=Math.cos(aTC),nVY=Math.sin(aTC);const dP=ball.dx*nVX+ball.dy*nVY;ball.dx-=2*dP*nVX;ball.dy-=2*dP*nVY;}if(ball.lines.length>300)ball.lines.shift();}}}
+        
+        function handleBallCollisions() {
+            for (let i = 0; i < balls.length; i++) {
+                for (let j = i + 1; j < balls.length; j++) {
+                    const b1 = balls[i];
+                    const b2 = balls[j];
+
+                    if (b1.awaitingThrow || b2.awaitingThrow) continue; 
+
+                    const dx = b2.x - b1.x;
+                    const dy = b2.y - b1.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    const minDist = b1.radius + b2.radius;
+
+                    if (distance < minDist) {
+                        playNormalImpactSound(Math.sqrt(b1.dx**2 + b1.dy**2) + Math.sqrt(b2.dx**2 + b2.dy**2)); 
+
+                        const nx = dx / distance;
+                        const ny = dy / distance;
+                        const tx = -ny;
+                        const ty = nx;
+                        const dpTan1 = b1.dx * tx + b1.dy * ty;
+                        const dpTan2 = b2.dx * tx + b2.dy * ty;
+                        const dpNorm1 = b1.dx * nx + b1.dy * ny;
+                        const dpNorm2 = b2.dx * nx + b2.dy * ny;
+                        const m1 = dpNorm2;
+                        const m2 = dpNorm1;
+
+                        b1.dx = tx * dpTan1 + nx * m1;
+                        b1.dy = ty * dpTan1 + ny * m1;
+                        b2.dx = tx * dpTan2 + nx * m2;
+                        b2.dy = ty * dpTan2 + ny * m2;
+                        
+                        const overlap = minDist - distance;
+                        const correctionX = (overlap / 2) * nx;
+                        const correctionY = (overlap / 2) * ny;
+                        
+                        b1.x -= correctionX;
+                        b1.y -= correctionY;
+                        b2.x += correctionX;
+                        b2.y += correctionY;
+
+                        createSparkles((b1.x+b2.x)/2, (b1.y+b2.y)/2, '#CCCCCC'); 
+                    }
+                }
+            }
+        }
+
+        canvas.addEventListener('mousedown', (event) => {
+            if (!audioInitialized) return; 
+            if (ballsToThrow > 0 && ballsToThrow <= balls.length && balls[currentThrowingBallIndex] && balls[currentThrowingBallIndex].awaitingThrow) {
+                const ballToThrow = balls[currentThrowingBallIndex];
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = event.clientX - rect.left;
+                const mouseY = event.clientY - rect.top;
+                const distToBall = Math.sqrt((mouseX - ballToThrow.x)**2 + (mouseY - ballToThrow.y)**2);
+                if (distToBall < ballToThrow.radius * 5) { 
+                    isThrowing = true;
+                    throwStartX = mouseX; 
+                    throwStartY = mouseY;
+                    currentMouseX = mouseX; 
+                    currentMouseY = mouseY;
+                }
             }
         });
 
-        function gRC(){const r=Math.floor(Math.random()*200+55),g=Math.floor(Math.random()*200+55),b=Math.floor(Math.random()*200+55);return`rgb(${r},${g},${b})`;}
-        function rA(){if(animationFrameId)cancelAnimationFrame(animationFrameId);sCD();ball.x=boundary.x;ball.y=boundary.y;ball.isOutside=false;const iS=2,a=Math.random()*Math.PI*2;ball.dx=Math.cos(a)*iS;ball.dy=Math.sin(a)*iS;lines=[];if(audioInitialized)uSV();animate();}
-        function dB(){ctx.beginPath();ctx.arc(boundary.x,boundary.y,boundary.radius,0,Math.PI*2);ctx.strokeStyle='rgba(255,255,255,0.3)';ctx.lineWidth=1; ctx.stroke();ctx.closePath();}
-        function drB(){ctx.beginPath();ctx.arc(ball.x,ball.y,ball.radius,0,Math.PI*2);ctx.fillStyle=ball.isOutside?'#FFD700':ball.color;ctx.fill();ctx.closePath();}
-        function drL(){lines.forEach(l=>{ctx.beginPath();ctx.moveTo(l.collisionPointX,l.collisionPointY);ctx.lineTo(ball.x,ball.y);ctx.strokeStyle=l.color;ctx.lineWidth=l.lineWidth; ctx.stroke();ctx.closePath();});}
-        
-        function uBP(){ 
-            if(ball.isOutside){ball.dy+=gravity;let tFX=0,tFY=0;if(lines.length>0){lines.forEach(l=>{const vX=l.collisionPointX-ball.x,vY=l.collisionPointY-ball.y;const d=Math.sqrt(vX*vX+vY*vY);if(d>0.01){const fM=lineTensionConstant*d;tFX+=(vX/d)*fM;tFY+=(vY/d)*fM;}});}ball.dx+=tFX;ball.dy+=tFY;ball.dx*=dampingFactorOutside;ball.dy*=dampingFactorOutside;ball.x+=ball.dx;ball.y+=ball.dy;const dTC=Math.sqrt((ball.x-boundary.x)**2+(ball.y-boundary.y)**2);if(dTC<boundary.radius-ball.radius && (ball.dx * (ball.x - boundary.x) + ball.dy * (ball.y - boundary.y)) < 0 ){ball.isOutside=false;playReentrySound();console.log("Ball re-entered.");}}else{ball.dy+=gravity;ball.x+=ball.dx;ball.y+=ball.dy;const dFC=Math.sqrt((ball.x-boundary.x)**2+(ball.y-boundary.y)**2);if(dFC+ball.radius>boundary.radius){const cS=Math.sqrt(ball.dx**2+ball.dy**2);const aTC=Math.atan2(ball.y-boundary.y,ball.x-boundary.x);const iX=boundary.x+Math.cos(aTC)*boundary.radius;const iY=boundary.y+Math.sin(aTC)*boundary.radius;
-            let cLW = defaultLineWidth; if (thickenLinesToggle && thickenLinesToggle.checked) { cLW = 1 + lines.length * 0.025; } 
+        canvas.addEventListener('mousemove', (event) => {
+            if (isThrowing && ballsToThrow > 0 && ballsToThrow <= balls.length) {
+                const rect = canvas.getBoundingClientRect();
+                currentMouseX = event.clientX - rect.left;
+                currentMouseY = event.clientY - rect.top;
+            }
+        });
 
-            if(cS>breakthroughSpeedThreshold){ball.isOutside=true;playBreakthroughSound();console.log("Ball broke through!");lines.push({collisionPointX:iX,collisionPointY:iY,color:gRC(),lineWidth:cLW});ball.x=boundary.x+Math.cos(aTC)*(boundary.radius+ball.radius*0.1);ball.y=boundary.y+Math.sin(aTC)*(boundary.radius+ball.radius*0.1);}else{playNormalImpactSound(cS);lines.push({collisionPointX:iX,collisionPointY:iY,color:gRC(),lineWidth:cLW});ball.dx*=speedBoostFactor;ball.dy*=speedBoostFactor;ball.x=boundary.x+Math.cos(aTC)*(boundary.radius-ball.radius);ball.y=boundary.y+Math.sin(aTC)*(boundary.radius-ball.radius);const nVX=Math.cos(aTC),nVY=Math.sin(aTC);const dP=ball.dx*nVX+ball.dy*nVY;ball.dx-=2*dP*nVX;ball.dy-=2*dP*nVY;}if(lines.length>300)lines.shift(); }}}
-        
-        function animate(){ctx.clearRect(0,0,canvas.width,canvas.height);dB();drL();drB();uBP();animationFrameId=requestAnimationFrame(animate);}
+        canvas.addEventListener('mouseup', (event) => {
+            if (!audioInitialized) return;
+            if (isThrowing && ballsToThrow > 0 && ballsToThrow <= balls.length && balls[currentThrowingBallIndex]) {
+                const ballToThrow = balls[currentThrowingBallIndex];
+                const rect = canvas.getBoundingClientRect();
+                const throwEndX = event.clientX - rect.left;
+                const throwEndY = event.clientY - rect.top;
+
+                ballToThrow.dx = (throwEndX - ballToThrow.x) * throwStrengthFactor;
+                ballToThrow.dy = (throwEndY - ballToThrow.y) * throwStrengthFactor;
+                
+                ballToThrow.awaitingThrow = false;
+                isThrowing = false;
+                
+                ballsToThrow++; 
+                if (ballsToThrow <= balls.length && ballsToThrow <= ballsToThrowCount) { 
+                    currentThrowingBallIndex = ballsToThrow - 1;
+                    if(balls[currentThrowingBallIndex]) balls[currentThrowingBallIndex].awaitingThrow = true; 
+                } else {
+                    ballsToThrow = 0; 
+                    currentThrowingBallIndex = -1;
+                }
+
+            } else if (ballsToThrow === 0 && clickPushToggle && clickPushToggle.checked) {
+                const rect = canvas.getBoundingClientRect();
+                const clickX = event.clientX - rect.left;
+                const clickY = event.clientY - rect.top;
+                let closestBall = null;
+                let minDistSq = Infinity;
+                balls.forEach(ball => {
+                    if (ball.awaitingThrow) return;
+                    const dSq = (ball.x - clickX)**2 + (ball.y - clickY)**2;
+                    if (dSq < minDistSq) {
+                        minDistSq = dSq;
+                        closestBall = ball;
+                    }
+                });
+                if (closestBall) {
+                    const dxPush = closestBall.x - clickX;
+                    const dyPush = closestBall.y - clickY;
+                    const dist = Math.sqrt(dxPush * dxPush + dyPush * dyPush);
+                    if (dist > 0) {
+                        closestBall.dx += (dxPush / dist) * clickPushForce;
+                        closestBall.dy += (dyPush / dist) * clickPushForce;
+                    }
+                }
+            }
+        });
+
+
+        function animate(){ 
+            drawBackground(); 
+            drawStarfield();  
+            dB(); 
+            
+            balls.forEach(ball => {
+                if (!ball.awaitingThrow) drawBallTrail(ball);
+                drL(ball); 
+                drB(ball); 
+            });
+            
+            if (ballsToThrow > 0 && ballsToThrow <= ballsToThrowCount) drawThrowIndicator(); 
+            drawAndUpdateParticles(); 
+            
+            balls.forEach((ball, index) => {
+                uBP(ball, index);
+            });
+            if (balls.length > 1 && ballsToThrow === 0) { 
+                 handleBallCollisions();
+            }
+            
+            animationFrameId=requestAnimationFrame(animate); 
+        }
         window.addEventListener('resize',()=>{clearTimeout(window.resizedFinished);window.resizedFinished=setTimeout(()=>{if(audioInitialized)rA();else sCD();},100);}); 
         sCD(); 
     </script>
