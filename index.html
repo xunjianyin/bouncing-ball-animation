@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bouncing Ball - Robust Sound Scheduling</title>
+    <title>Bouncing Ball - UI Fixes & Enhancements</title>
     <script src="https://cdn.tailwindcss.com"></script> <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
         html, body { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #111827; font-family: 'Inter', sans-serif; }
@@ -12,12 +12,12 @@
         #startAudioButton:hover { background-color: #059669; }
         #startAudioButton.hidden { display: none; }
         #toggleControlsButton { position: fixed; top: 10px; left: 10px; z-index: 30; background-color: #4F46E5; color: white; padding: 8px 12px; border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.2s, left 0.3s ease-in-out, opacity 0.3s; }
-        #toggleControlsButton.hidden, #readmeButton.hidden, #exitZenModeButton.hidden { display: none; }
+        #toggleControlsButton.hidden, #readmeButton.hidden, #exitZenModeButton.hidden, #statsDisplay.hidden { display: none; }
         #toggleControlsButton:hover { background-color: #4338CA; }
         .controls { position: fixed; top: 55px; left: 10px; background-color: rgba(40, 40, 50, 0.92); padding: 15px; border-radius: 10px; color: white; font-size: 0.8em; z-index: 20; max-height: calc(100vh - 75px); overflow-y: auto; border: 1px solid rgba(255,255,255,0.2); width: 250px; transform: translateX(0%); transition: transform 0.3s ease-in-out, opacity 0.3s; }
         .controls.collapsed { transform: translateX(-110%); }
         .controls.hidden-via-zen { opacity: 0; pointer-events: none; transform: translateX(-110%);}
-        #toggleControlsButton.hidden-via-zen, #readmeButton.hidden-via-zen { opacity: 0; pointer-events: none;}
+        #toggleControlsButton.hidden-via-zen, #readmeButton.hidden-via-zen, #statsDisplay.hidden-via-zen { opacity: 0; pointer-events: none;}
 
 
         .controls h3 { font-size: 1.1em; margin-top: 10px; margin-bottom: 5px; color: #a5b4fc; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 3px;}
@@ -43,12 +43,46 @@
         #exitZenModeButton { position: fixed; bottom: 15px; right: 15px; z-index: 60; background-color: rgba(79, 70, 229, 0.7); color: white; padding: 8px 12px; border: 1px solid rgba(255,255,255,0.3); border-radius: 5px; cursor: pointer; font-size: 0.8em; transition: background-color 0.2s; }
         #exitZenModeButton:hover { background-color: rgba(67, 56, 202, 0.9); }
 
+        #statsDisplay {
+            position: fixed;
+            top: 55px; 
+            right: 10px;
+            z-index: 25; 
+            background-color: rgba(40, 40, 50, 0.85);
+            color: #e2e8f0; 
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.75em;
+            border: 1px solid rgba(255,255,255,0.15);
+            transition: opacity 0.3s;
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
+        }
+        #statsDisplay p { margin: 2px 0; }
+        #statsDisplay strong { color: #a5b4fc; }
+        #statsDisplay h4 { font-size: 0.9em; margin: 8px 0 2px 0; padding-top: 5px; border-top: 1px solid rgba(255,255,255,0.1);}
+        #statsDisplay .stats-header { cursor: pointer; user-select: none; font-weight: bold; margin-bottom: 5px; }
+        #statsDisplay .stats-content { /* Initially visible, can be toggled */ }
+        #statsDisplay .stats-content.collapsed { display: none; }
+
+
     </style>
 </head>
 <body> 
     <button id="startAudioButton">Start Audio & Animation</button>
     <button id="toggleControlsButton" class="hidden">Hide Controls</button>
     <button id="readmeButton" class="hidden">?</button> 
+    <div id="statsDisplay" class="hidden"> 
+        <div class="stats-header" id="statsHeader">Game Statistics (Click to toggle)</div>
+        <div class="stats-content" id="statsContent">
+            <div id="totalStatsDisplay">
+                {/* This comment is intentionally left empty for JS to populate */}
+            </div>
+            <div id="perBallStatsContainer">
+                {/* Per-ball stats will be added here by JS */}
+            </div>
+        </div>
+    </div>
     <canvas id="animationCanvas"></canvas>
     <div class="controls hidden"> 
         <h3>Setup</h3>
@@ -60,8 +94,15 @@
         <input type="range" id="gravitySlider" min="0" max="1" step="0.01" value="0.1">
         <label for="speedBoostSlider">Speed Boost (Inside): <span id="speedBoostValue">1.05</span></label>
         <input type="range" id="speedBoostSlider" min="1" max="1.5" step="0.01" value="1.05">
-        <label for="breakthroughSpeedSlider">Breakthrough Speed: <span id="breakthroughSpeedValue">25</span></label>
-        <input type="range" id="breakthroughSpeedSlider" min="10" max="50" step="1" value="25">
+        
+        <label for="boundaryMaterialSelect">Boundary Material: <span id="boundaryMaterialValue">Wood</span></label>
+        <select id="boundaryMaterialSelect">
+            <option value="cotton">Cotton (Easiest)</option>
+            <option value="wood" selected>Wood</option>
+            <option value="steel">Steel</option>
+            <option value="diamond">Diamond (Hardest)</option>
+        </select>
+        
         <label for="lineTensionSlider">Line Tension: <span id="lineTensionValue">0.0005</span></label>
         <input type="range" id="lineTensionSlider" min="0.00001" max="0.005" step="0.00001" value="0.0005">
         <label for="dampingFactorOutsideSlider">Outside Damping: <span id="dampingFactorOutsideValue">0.997</span></label>
@@ -114,10 +155,19 @@
         const closeReadmeButton = document.getElementById('closeReadmeButton');
         const enterZenModeButton = document.getElementById('enterZenModeButton'); 
         const exitZenModeButton = document.getElementById('exitZenModeButton');   
+        const statsDisplay = document.getElementById('statsDisplay'); 
+        const totalStatsDisplayEl = document.getElementById('totalStatsDisplay'); 
+        const perBallStatsContainerEl = document.getElementById('perBallStatsContainer'); 
+        const statsHeader = document.getElementById('statsHeader');
+        const statsContent = document.getElementById('statsContent');
+
 
         // Setup Controls
         const numBallsInput = document.getElementById('numBallsInput');
         const numBallsValue = document.getElementById('numBallsValue');
+        const boundaryMaterialSelect = document.getElementById('boundaryMaterialSelect'); 
+        const boundaryMaterialValue = document.getElementById('boundaryMaterialValue'); 
+
 
         const gradientBgToggle = document.getElementById('gradientBgToggle');
         const starfieldToggle = document.getElementById('starfieldToggle'); 
@@ -131,8 +181,6 @@
         const clickPushToggle = document.getElementById('clickPushToggle'); 
 
 
-        const breakthroughSpeedSlider = document.getElementById('breakthroughSpeedSlider');
-        const breakthroughSpeedValue = document.getElementById('breakthroughSpeedValue');
         const lineTensionSlider = document.getElementById('lineTensionSlider');
         const lineTensionValue = document.getElementById('lineTensionValue');
         const dampingFactorOutsideSlider = document.getElementById('dampingFactorOutsideSlider');
@@ -173,12 +221,24 @@
         let throwStartX, throwStartY, currentMouseX, currentMouseY;
         const throwStrengthFactor = 0.05; 
         const clickPushForce = 2; 
-        const ballColors = ['#FFFFFF', '#00FFFF', '#FF00FF', '#FFFF00', '#00FF00']; 
+        const ballColors = ['#FFFFFF', '#87CEEB', '#FFC0CB', '#98FB98', '#FFA07A']; // White, SkyBlue, Pink, PaleGreen, LightSalmon
+        const ballNames = ["Alice", "Bob", "Carol", "Dave", "Eve"];
 
-        // --- Robust Sound Scheduling Variables ---
+        const boundaryMaterials = { 
+            cotton: { threshold: 15, name: "Cotton" },
+            wood: { threshold: 25, name: "Wood" },
+            steel: { threshold: 35, name: "Steel" },
+            diamond: { threshold: 45, name: "Diamond" }
+        };
+
+
         let lastScheduledSoundTime = 0;
-        const MIN_SOUND_EVENT_GAP = 0.001; // 1ms minimum gap
-        const explicitSoundTimeOffset = 0.02; // 20ms base future offset
+        const MIN_SOUND_EVENT_GAP = 0.001; 
+        const explicitSoundTimeOffset = 0.02; 
+
+        let totalBounces = 0;
+        let totalBreakthroughs = 0;
+        let totalBallCollisions = 0; 
 
 
         function hexToRgb(hex) { const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex); return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : null; }
@@ -187,56 +247,37 @@
         function gRC(){const r=Math.floor(Math.random()*200+55),g=Math.floor(Math.random()*200+55),b=Math.floor(Math.random()*200+55);return`rgb(${r},${g},${b})`;}
 
 
-        function initAudio() { /* ... (Audio Init - same as before, condensed) ... */ if(audioInitialized)return;Tone.start().then(()=>{console.log("Audio context started.");masterVolume=new Tone.Volume().toDestination();uSV();musicSynths.cosmicArp=new Tone.PolySynth(Tone.Synth,{oscillator:{type:"fatsawtooth",count:3,spread:30},envelope:{attack:0.01,decay:0.1,sustain:0.5,release:0.4}}).connect(masterVolume);musicSynths.cosmicArp.volume.value=initialMusicVolumes.cosmicArp;const caN=["C3","E3","G3","B3","C4","B3","G3","E3"];let caI=0;musicLoops.cosmicArp=new Tone.Loop(t=>{musicSynths.cosmicArp.triggerAttackRelease(caN[caI%caN.length],"8n",t);caI++;},"4n");musicSynths.ambientPad=new Tone.PolySynth(Tone.Synth,{oscillator:{type:"amsine",harmonicity:1.1,modulationType:"sine"},envelope:{attack:3,decay:1,sustain:0.8,release:4}}).connect(masterVolume);musicSynths.ambientPad.volume.value=initialMusicVolumes.ambientPad;const apC=[["C2","G2","E3"],["A1","E2","C3"],["F1","C2","A2"],["D2","A2","F3"]];let apI=0;musicLoops.ambientPad=new Tone.Loop(t=>{musicSynths.ambientPad.triggerAttackRelease(apC[apI%apC.length],"2m",t);apI++;},"2m");musicSynths.minimalBeat=new Tone.MonoSynth({oscillator:{type:"pulse",width:0.2},filter:{Q:1,type:"lowpass",rolloff:-12},envelope:{attack:0.01,decay:0.05,sustain:0.1,release:0.2},filterEnvelope:{attack:0.01,decay:0.02,sustain:0.3,release:0.1,baseFrequency:300,octaves:3}}).connect(masterVolume);musicSynths.minimalBeat.volume.value=initialMusicVolumes.minimalBeat;const mbP=["C2",null,"C2",null,"G2","G2","C2",null];let mbI=0;musicLoops.minimalBeat=new Tone.Loop(t=>{const n=mbP[mbI%mbP.length];if(n)musicSynths.minimalBeat.triggerAttackRelease(n,"16n",t);mbI++;},"8n");impactSynths.crispNoise=new Tone.NoiseSynth({noise:{type:'white'},envelope:{attack:0.001,decay:0.05,sustain:0}}).connect(masterVolume);impactSynths.metallicHit=new Tone.MetalSynth({frequency:150,envelope:{attack:0.001,decay:0.1,release:0.05},harmonicity:3.1,modulationIndex:16,octaves:0.5}).connect(masterVolume);impactSynths.synthBlip=new Tone.Synth({oscillator:{type:'triangle'},envelope:{attack:0.001,decay:0.05,sustain:0,release:0.1}}).connect(masterVolume);breakthroughSoundSynths.warpingSquare=new Tone.Synth({oscillator:{type:"fmsquare",modulationType:'triangle',harmonicity:0.5,modulationIndex:10},envelope:{attack:0.01,decay:0.3,sustain:0.1,release:0.5},volume:-6}).connect(masterVolume);breakthroughSoundSynths.risingPitch=new Tone.Synth({oscillator:{type:"sawtooth"},envelope:{attack:0.01,decay:0.4,sustain:0,release:0.1},volume:-8}).connect(masterVolume);breakthroughSoundSynths.quickWhoosh=new Tone.NoiseSynth({noise:{type:"pink"},envelope:{attack:0.005,decay:0.2,sustain:0,release:0.1},volume:-5}).connect(masterVolume);reentrySoundSynths.softThump=new Tone.Synth({oscillator:{type:"triangle8"},envelope:{attack:0.05,decay:0.2,sustain:0,release:0.3},volume:-9}).connect(masterVolume);reentrySoundSynths.gentleChime=new Tone.MetalSynth({frequency:400,envelope:{attack:0.01,decay:0.5,release:0.2},harmonicity:5.1,modulationIndex:8,octaves:1.5,volume:-12}).connect(masterVolume);reentrySoundSynths.subtlePop=new Tone.MembraneSynth({pitchDecay:0.008,octaves:2,oscillator:{type:"sine"},envelope:{attack:0.001,decay:0.1,sustain:0.001,release:0.01},volume:-10}).connect(masterVolume);Tone.Transport.bpm.value=100;Tone.Transport.start();audioInitialized=true;setMusicStyle(currentMusicStyle);setImpactSound(currentImpactSound);setBreakthroughSoundChoice(currentBreakthroughSound);setReentrySoundChoice(currentReentrySound);startAudioButton.classList.add('hidden');controlsDiv.classList.remove('hidden');toggleControlsButton.classList.remove('hidden');readmeButton.classList.remove('hidden');rA();}).catch(e=>{console.error("Error starting Tone.js:",e);startAudioButton.classList.add('hidden');controlsDiv.classList.remove('hidden');toggleControlsButton.classList.remove('hidden');readmeButton.classList.remove('hidden');rA();}); }
+        function getLineColor(ball, impactSpeed) {
+            if (speedLineColorToggle && speedLineColorToggle.checked) {
+                const speedRatio = Math.min(1, Math.max(0, (impactSpeed - MIN_CRASH_SPEED_FOR_COLOR) / (MAX_CRASH_SPEED_FOR_COLOR - MIN_CRASH_SPEED_FOR_COLOR)));
+                const hue = 240 - (speedRatio * 240); 
+                return hslToRgbString(hue, 100, 60); 
+            } else {
+                if (balls.length === 1 && ballsToThrowCount === 1) { // Only one ball, use fully random colors
+                    return gRC();
+                }
+                const baseRgb = hexToRgb(ball.color);
+                if (!baseRgb) return gRC(); 
+
+                const r = Math.min(255, Math.max(0, baseRgb.r + Math.floor(Math.random() * 80 - 40)));
+                const g = Math.min(255, Math.max(0, baseRgb.g + Math.floor(Math.random() * 80 - 40)));
+                const b = Math.min(255, Math.max(0, baseRgb.b + Math.floor(Math.random() * 80 - 40)));
+                return `rgb(${r},${g},${b})`;
+            }
+        }
+
+
+        function initAudio() { /* ... (Audio Init - same as before, condensed) ... */ if(audioInitialized)return;Tone.start().then(()=>{console.log("Audio context started.");masterVolume=new Tone.Volume().toDestination();uSV();musicSynths.cosmicArp=new Tone.PolySynth(Tone.Synth,{oscillator:{type:"fatsawtooth",count:3,spread:30},envelope:{attack:0.01,decay:0.1,sustain:0.5,release:0.4}}).connect(masterVolume);musicSynths.cosmicArp.volume.value=initialMusicVolumes.cosmicArp;const caN=["C3","E3","G3","B3","C4","B3","G3","E3"];let caI=0;musicLoops.cosmicArp=new Tone.Loop(t=>{musicSynths.cosmicArp.triggerAttackRelease(caN[caI%caN.length],"8n",t);caI++;},"4n");musicSynths.ambientPad=new Tone.PolySynth(Tone.Synth,{oscillator:{type:"amsine",harmonicity:1.1,modulationType:"sine"},envelope:{attack:3,decay:1,sustain:0.8,release:4}}).connect(masterVolume);musicSynths.ambientPad.volume.value=initialMusicVolumes.ambientPad;const apC=[["C2","G2","E3"],["A1","E2","C3"],["F1","C2","A2"],["D2","A2","F3"]];let apI=0;musicLoops.ambientPad=new Tone.Loop(t=>{musicSynths.ambientPad.triggerAttackRelease(apC[apI%apC.length],"2m",t);apI++;},"2m");musicSynths.minimalBeat=new Tone.MonoSynth({oscillator:{type:"pulse",width:0.2},filter:{Q:1,type:"lowpass",rolloff:-12},envelope:{attack:0.01,decay:0.05,sustain:0.1,release:0.2},filterEnvelope:{attack:0.01,decay:0.02,sustain:0.3,release:0.1,baseFrequency:300,octaves:3}}).connect(masterVolume);musicSynths.minimalBeat.volume.value=initialMusicVolumes.minimalBeat;const mbP=["C2",null,"C2",null,"G2","G2","C2",null];let mbI=0;musicLoops.minimalBeat=new Tone.Loop(t=>{const n=mbP[mbI%mbP.length];if(n)musicSynths.minimalBeat.triggerAttackRelease(n,"16n",t);mbI++;},"8n");impactSynths.crispNoise=new Tone.NoiseSynth({noise:{type:'white'},envelope:{attack:0.001,decay:0.05,sustain:0}}).connect(masterVolume);impactSynths.metallicHit=new Tone.MetalSynth({frequency:150,envelope:{attack:0.001,decay:0.1,release:0.05},harmonicity:3.1,modulationIndex:16,octaves:0.5}).connect(masterVolume);impactSynths.synthBlip=new Tone.Synth({oscillator:{type:'triangle'},envelope:{attack:0.001,decay:0.05,sustain:0,release:0.1}}).connect(masterVolume);breakthroughSoundSynths.warpingSquare=new Tone.Synth({oscillator:{type:"fmsquare",modulationType:'triangle',harmonicity:0.5,modulationIndex:10},envelope:{attack:0.01,decay:0.3,sustain:0.1,release:0.5},volume:-6}).connect(masterVolume);breakthroughSoundSynths.risingPitch=new Tone.Synth({oscillator:{type:"sawtooth"},envelope:{attack:0.01,decay:0.4,sustain:0,release:0.1},volume:-8}).connect(masterVolume);breakthroughSoundSynths.quickWhoosh=new Tone.NoiseSynth({noise:{type:"pink"},envelope:{attack:0.005,decay:0.2,sustain:0,release:0.1},volume:-5}).connect(masterVolume);reentrySoundSynths.softThump=new Tone.Synth({oscillator:{type:"triangle8"},envelope:{attack:0.05,decay:0.2,sustain:0,release:0.3},volume:-9}).connect(masterVolume);reentrySoundSynths.gentleChime=new Tone.MetalSynth({frequency:400,envelope:{attack:0.01,decay:0.5,release:0.2},harmonicity:5.1,modulationIndex:8,octaves:1.5,volume:-12}).connect(masterVolume);reentrySoundSynths.subtlePop=new Tone.MembraneSynth({pitchDecay:0.008,octaves:2,oscillator:{type:"sine"},envelope:{attack:0.001,decay:0.1,sustain:0.001,release:0.01},volume:-10}).connect(masterVolume);Tone.Transport.bpm.value=100;Tone.Transport.start();audioInitialized=true;setMusicStyle(currentMusicStyle);setImpactSound(currentImpactSound);setBreakthroughSoundChoice(currentBreakthroughSound);setReentrySoundChoice(currentReentrySound);startAudioButton.classList.add('hidden');controlsDiv.classList.remove('hidden');toggleControlsButton.classList.remove('hidden');readmeButton.classList.remove('hidden');statsDisplay.classList.remove('hidden'); rA();}).catch(e=>{console.error("Error starting Tone.js:",e);startAudioButton.classList.add('hidden');controlsDiv.classList.remove('hidden');toggleControlsButton.classList.remove('hidden');readmeButton.classList.remove('hidden');statsDisplay.classList.remove('hidden');rA();}); }
 
         function setMusicStyle(styleName) { /* ... */ Object.values(musicLoops).forEach(l=>l.stop(0)); Object.keys(musicSynths).forEach(k=>{musicSynths[k].volume.value=-Infinity;}); currentMusicStyle=styleName; document.getElementById('musicStyleSelect').value=styleName; if(styleName!=="none"&&musicLoops[styleName]&&musicSynths[styleName]){musicSynths[styleName].volume.value=initialMusicVolumes[styleName]; musicLoops[styleName].start(0);} }
         function setImpactSound(soundName) { /* ... */ currentImpactSound=soundName; document.getElementById('impactSoundSelect').value=soundName; }
         function setBreakthroughSoundChoice(soundName) { /* ... */ currentBreakthroughSound = soundName; document.getElementById('breakthroughSoundSelect').value = soundName; }
         function setReentrySoundChoice(soundName) { /* ... */ currentReentrySound = soundName; document.getElementById('reentrySoundSelect').value = soundName; }
         
-        function getScheduledSoundTime() {
-            let scheduledTime = Tone.now() + explicitSoundTimeOffset;
-            if (scheduledTime <= lastScheduledSoundTime) {
-                scheduledTime = lastScheduledSoundTime + MIN_SOUND_EVENT_GAP;
-            }
-            lastScheduledSoundTime = scheduledTime;
-            return scheduledTime;
-        }
-
-        function playNormalImpactSound(speed) { 
-            if(!audioInitialized||currentImpactSound==="none"||!impactSynths[currentImpactSound])return; 
-            const aS=impactSynths[currentImpactSound]; 
-            const sR=Math.min(1,Math.max(0,(speed-MIN_CRASH_SPEED)/(MAX_CRASH_SPEED-MIN_CRASH_SPEED))); 
-            const dV=MIN_CRASH_DB+sR*(MAX_CRASH_DB-MIN_CRASH_DB); 
-            aS.volume.value=dV; 
-            const triggerTime = getScheduledSoundTime();
-            if(currentImpactSound==="synthBlip")aS.triggerAttackRelease("C5","32n", triggerTime); 
-            else aS.triggerAttackRelease("16n", triggerTime);
-        }
-        function playBreakthroughSound() { 
-            if (!audioInitialized || currentBreakthroughSound === "none" || !breakthroughSoundSynths[currentBreakthroughSound]) return; 
-            const activeSynth = breakthroughSoundSynths[currentBreakthroughSound]; 
-            const triggerTime = getScheduledSoundTime();
-            switch (currentBreakthroughSound) { 
-                case "warpingSquare": activeSynth.triggerAttackRelease("A4", "0.5n", triggerTime); break; 
-                case "risingPitch": 
-                    activeSynth.triggerAttack("C4", triggerTime); 
-                    activeSynth.frequency.rampTo("C6", 0.4, triggerTime); 
-                    activeSynth.triggerRelease(triggerTime + 0.4); 
-                    break; 
-                case "quickWhoosh": activeSynth.triggerAttackRelease("0.2n", triggerTime); break; 
-            } 
-        }
-        function playReentrySound() { 
-            if (!audioInitialized || currentReentrySound === "none" || !reentrySoundSynths[currentReentrySound]) return; 
-            const activeSynth = reentrySoundSynths[currentReentrySound]; 
-            const triggerTime = getScheduledSoundTime();
-            switch (currentReentrySound) { 
-                case "softThump": activeSynth.triggerAttackRelease("G3", "0.3n", triggerTime); break; 
-                case "gentleChime": activeSynth.triggerAttackRelease("C5", "0.5n", triggerTime); break; 
-                case "subtlePop": activeSynth.triggerAttackRelease("C4", "0.1n", triggerTime); break; 
-            } 
-        }
+        function getScheduledSoundTime() { let scheduledTime = Tone.now() + explicitSoundTimeOffset; if (scheduledTime <= lastScheduledSoundTime) { scheduledTime = lastScheduledSoundTime + MIN_SOUND_EVENT_GAP; } lastScheduledSoundTime = scheduledTime; return scheduledTime; }
+        function playNormalImpactSound(speed) { if(!audioInitialized||currentImpactSound==="none"||!impactSynths[currentImpactSound])return; const aS=impactSynths[currentImpactSound]; const sR=Math.min(1,Math.max(0,(speed-MIN_CRASH_SPEED)/(MAX_CRASH_SPEED-MIN_CRASH_SPEED))); const dV=MIN_CRASH_DB+sR*(MAX_CRASH_DB-MIN_CRASH_DB); aS.volume.value=dV; const triggerTime = getScheduledSoundTime(); if(currentImpactSound==="synthBlip")aS.triggerAttackRelease("C5","32n", triggerTime); else aS.triggerAttackRelease("16n", triggerTime); }
+        function playBreakthroughSound() { if (!audioInitialized || currentBreakthroughSound === "none" || !breakthroughSoundSynths[currentBreakthroughSound]) return; const activeSynth = breakthroughSoundSynths[currentBreakthroughSound]; const triggerTime = getScheduledSoundTime(); switch (currentBreakthroughSound) { case "warpingSquare": activeSynth.triggerAttackRelease("A4", "0.5n", triggerTime); break; case "risingPitch": activeSynth.triggerAttack("C4", triggerTime); activeSynth.frequency.rampTo("C6", 0.4, triggerTime); activeSynth.triggerRelease(triggerTime + 0.4); break; case "quickWhoosh": activeSynth.triggerAttackRelease("0.2n", triggerTime); break; } }
+        function playReentrySound() { if (!audioInitialized || currentReentrySound === "none" || !reentrySoundSynths[currentReentrySound]) return; const activeSynth = reentrySoundSynths[currentReentrySound]; const triggerTime = getScheduledSoundTime(); switch (currentReentrySound) { case "softThump": activeSynth.triggerAttackRelease("G3", "0.3n", triggerTime); break; case "gentleChime": activeSynth.triggerAttackRelease("C5", "0.5n", triggerTime); break; case "subtlePop": activeSynth.triggerAttackRelease("C4", "0.1n", triggerTime); break; } }
 
         function sCD(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; if (boundary) { boundary.x = canvas.width / 2; boundary.y = canvas.height / 2; boundary.radius = Math.min(canvas.width, canvas.height) * 0.35; } initStars(); }
         
@@ -248,7 +289,13 @@
             if(gV&&gS){gV.textContent=parseFloat(gS.value).toFixed(2);gravity=parseFloat(gS.value);} 
             if(sBV&&sBS){sBV.textContent=parseFloat(sBS.value).toFixed(2);speedBoostFactor=parseFloat(sBS.value);} 
             if(vV&&vS&&masterVolume){const val=parseFloat(vS.value);vV.textContent=val.toFixed(2);if(val===0)masterVolume.volume.value=-Infinity;else masterVolume.volume.value=Tone.gainToDb(val);} 
-            if(breakthroughSpeedValue && breakthroughSpeedSlider) { breakthroughSpeedValue.textContent = breakthroughSpeedSlider.value; breakthroughSpeedThreshold = parseFloat(breakthroughSpeedSlider.value); } 
+            
+            const selectedMaterialKey = boundaryMaterialSelect ? boundaryMaterialSelect.value : 'wood';
+            if (boundaryMaterials[selectedMaterialKey]) {
+                breakthroughSpeedThreshold = boundaryMaterials[selectedMaterialKey].threshold;
+                if(boundaryMaterialValue) boundaryMaterialValue.textContent = boundaryMaterials[selectedMaterialKey].name;
+            }
+            
             if(lineTensionValue && lineTensionSlider) { const tensionVal = parseFloat(lineTensionSlider.value); lineTensionValue.textContent = tensionVal.toExponential(1); lineTensionConstant = tensionVal; } 
             if(dampingFactorOutsideValue && dampingFactorOutsideSlider) { const dampingVal = parseFloat(dampingFactorOutsideSlider.value); dampingFactorOutsideValue.textContent = dampingVal.toFixed(3); dampingFactorOutside = dampingVal; }
             if(numBallsValue && numBallsInput) {
@@ -261,7 +308,10 @@
             }
         }
         
-        if(gS)gS.addEventListener('input',uSV);if(sBS)sBS.addEventListener('input',uSV);if(vS)vS.addEventListener('input',uSV); if(breakthroughSpeedSlider) breakthroughSpeedSlider.addEventListener('input', uSV); if(lineTensionSlider) lineTensionSlider.addEventListener('input', uSV); if(dampingFactorOutsideSlider) dampingFactorOutsideSlider.addEventListener('input', uSV);
+        if(gS)gS.addEventListener('input',uSV);if(sBS)sBS.addEventListener('input',uSV);if(vS)vS.addEventListener('input',uSV); 
+        if(boundaryMaterialSelect) boundaryMaterialSelect.addEventListener('change', uSV); 
+        if(lineTensionSlider) lineTensionSlider.addEventListener('input', uSV); 
+        if(dampingFactorOutsideSlider) dampingFactorOutsideSlider.addEventListener('input', uSV);
         if(numBallsInput) numBallsInput.addEventListener('change', uSV); 
 
         if(mSS)mSS.addEventListener('change',(e)=>{if(audioInitialized)setMusicStyle(e.target.value);});if(iSS)iSS.addEventListener('change',(e)=>{if(audioInitialized)setImpactSound(e.target.value);});if(bSS)bSS.addEventListener('change',(e)=>{if(audioInitialized)setBreakthroughSoundChoice(e.target.value);});if(rESS)rESS.addEventListener('change',(e)=>{if(audioInitialized)setReentrySoundChoice(e.target.value);});if(rB)rB.addEventListener('click',()=>{if(audioInitialized)rA();});if(startAudioButton)startAudioButton.addEventListener('click',initAudio);
@@ -269,26 +319,88 @@
         if(readmeButton) readmeButton.addEventListener('click', () => { if(readmeModal) readmeModal.classList.add('active'); });
         if(closeReadmeButton) closeReadmeButton.addEventListener('click', () => { if(readmeModal) readmeModal.classList.remove('active'); });
         if(readmeModal) readmeModal.addEventListener('click', (event) => { if (event.target === readmeModal) { readmeModal.classList.remove('active'); } });
-        function enterZen() { isZenModeActive = true; controlsDiv.classList.add('hidden-via-zen'); toggleControlsButton.classList.add('hidden-via-zen'); readmeButton.classList.add('hidden-via-zen'); exitZenModeButton.classList.remove('hidden'); }
-        function exitZen() { isZenModeActive = false; controlsDiv.classList.remove('hidden-via-zen'); if (!controlsDiv.classList.contains('collapsed')) { toggleControlsButton.classList.remove('hidden-via-zen'); } else { toggleControlsButton.textContent = 'Show Controls'; toggleControlsButton.classList.remove('hidden-via-zen'); } readmeButton.classList.remove('hidden-via-zen'); exitZenModeButton.classList.add('hidden'); }
+        function enterZen() { isZenModeActive = true; controlsDiv.classList.add('hidden-via-zen'); toggleControlsButton.classList.add('hidden-via-zen'); readmeButton.classList.add('hidden-via-zen'); statsDisplay.classList.add('hidden-via-zen'); exitZenModeButton.classList.remove('hidden'); }
+        function exitZen() { isZenModeActive = false; controlsDiv.classList.remove('hidden-via-zen'); if (!controlsDiv.classList.contains('collapsed')) { toggleControlsButton.classList.remove('hidden-via-zen'); } else { toggleControlsButton.textContent = 'Show Controls'; toggleControlsButton.classList.remove('hidden-via-zen'); } readmeButton.classList.remove('hidden-via-zen'); statsDisplay.classList.remove('hidden-via-zen'); exitZenModeButton.classList.add('hidden'); }
         if(enterZenModeButton) enterZenModeButton.addEventListener('click', enterZen);
         if(exitZenModeButton) exitZenModeButton.addEventListener('click', exitZen);
         window.addEventListener('keydown', (event) => { if (event.key === 'Escape' && isZenModeActive) { exitZen(); } });
+        if(statsHeader) statsHeader.addEventListener('click', () => {
+            if(statsContent) statsContent.classList.toggle('collapsed');
+        });
 
-        function createBall(x, y, color) { return { x: x, y: y, dx: 0, dy: 0, radius: 8, color: color, isOutside: false, lines: [], ballTrailPoints: [], awaitingThrow: true }; }
+
+        function createBall(x, y, color, name) { return { x: x, y: y, dx: 0, dy: 0, radius: 8, name: name, color: color, isOutside: false, lines: [], ballTrailPoints: [], awaitingThrow: true, bounces: 0, breakthroughs: 0 }; }
         
+        function updateStatsDisplay() {
+            if(totalStatsDisplayEl) totalStatsDisplayEl.innerHTML = ''; 
+            if(perBallStatsContainerEl) perBallStatsContainerEl.innerHTML = ''; 
+            
+            let currentTotalBounces = 0;
+            let currentTotalBreakthroughs = 0;
+            balls.forEach(ball => {
+                currentTotalBounces += ball.bounces;
+                currentTotalBreakthroughs += ball.breakthroughs;
+            });
+            
+            const totalBouncesP = document.createElement('p');
+            totalBouncesP.innerHTML = `Total Bounces: <strong>${currentTotalBounces}</strong>`;
+            totalStatsDisplayEl.appendChild(totalBouncesP);
+
+            const totalBreakthroughsP = document.createElement('p');
+            totalBreakthroughsP.innerHTML = `Total Breakthroughs: <strong>${currentTotalBreakthroughs}</strong>`;
+            totalStatsDisplayEl.appendChild(totalBreakthroughsP);
+            
+            const totalBallCollisionsP = document.createElement('p');
+            totalBallCollisionsP.innerHTML = `Total Ball Collisions: <strong>${totalBallCollisions}</strong>`;
+            totalStatsDisplayEl.appendChild(totalBallCollisionsP);
+
+
+            balls.forEach((ball) => {
+                const ballStatDiv = document.createElement('div');
+                const nameEl = document.createElement('h4');
+                nameEl.textContent = `${ball.name}'s Stats:`;
+                nameEl.style.color = ball.color; // Use the ball's actual color for its name
+                
+                const bouncesEl = document.createElement('p');
+                bouncesEl.innerHTML = `&nbsp;&nbsp;Bounces: <strong>${ball.bounces}</strong>`;
+                const breakthroughsEl = document.createElement('p');
+                breakthroughsEl.innerHTML = `&nbsp;&nbsp;Breakthroughs: <strong>${ball.breakthroughs}</strong>`;
+
+                ballStatDiv.appendChild(nameEl);
+                ballStatDiv.appendChild(bouncesEl);
+                ballStatDiv.appendChild(breakthroughsEl);
+                if (perBallStatsContainerEl) perBallStatsContainerEl.appendChild(ballStatDiv);
+            });
+        }
+
+
         function rA(){ 
             if(animationFrameId)cancelAnimationFrame(animationFrameId); 
             sCD(); 
             uSV(); 
 
             balls = [];
-            const initialOffset = 20; 
+            const initialOffset = 15; 
+            const centerOffsetFactor = 0.05 * Math.min(canvas.width, canvas.height); 
+
             for (let i = 0; i < ballsToThrowCount; i++) {
+                let offsetX = 0;
+                let offsetY = 0;
+                if (ballsToThrowCount > 1) {
+                    // Improved offset logic for better initial separation
+                    const angleStep = (Math.PI * 2) / ballsToThrowCount;
+                    offsetX = Math.cos(i * angleStep) * centerOffsetFactor * 0.3 * ballsToThrowCount;
+                    offsetY = Math.sin(i * angleStep) * centerOffsetFactor * 0.3 * ballsToThrowCount;
+                    if (ballsToThrowCount === 2 && i === 1) { // Specific offset for 2 balls
+                        offsetX = initialOffset * 2;
+                        offsetY = 0;
+                    }
+                }
                 balls.push(createBall(
-                    boundary.x + (i > 0 ? (i % 2 === 0 ? -initialOffset * (Math.floor(i/2)+1) : initialOffset * (Math.floor(i/2)+1) ) : 0), 
-                    boundary.y + (i > 0 ? (i % 3 === 0 ? -initialOffset : initialOffset ) : 0), 
-                    ballColors[i % ballColors.length]
+                    boundary.x + offsetX, 
+                    boundary.y + offsetY, 
+                    ballColors[i % ballColors.length],
+                    ballNames[i % ballNames.length]
                 ));
             }
             
@@ -302,7 +414,11 @@
             }
             isThrowing = false; 
             particles=[]; 
-            lastScheduledSoundTime = 0; // Reset last scheduled sound time
+            lastScheduledSoundTime = 0; 
+            totalBounces = 0; 
+            totalBreakthroughs = 0;
+            totalBallCollisions = 0; 
+            updateStatsDisplay(); 
             if(audioInitialized)uSV(); 
             animate(); 
         }
@@ -348,7 +464,7 @@
                     ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
                     ctx.font = "16px Arial";
                     ctx.textAlign = "center";
-                    ctx.fillText(`Click and drag from Ball ${ballsToThrow} to throw!`, canvas.width / 2, canvas.height / 2 + 40 + (ballsToThrow-1)*20 );
+                    ctx.fillText(`Click and drag from ${ballToThrowObj.name} to throw!`, canvas.width / 2, canvas.height / 2 + 40 + (ballsToThrow-1)*20 );
                     ctx.restore();
                 }
             }
@@ -361,8 +477,16 @@
             if (ball.ballTrailPoints.length > MAX_TRAIL_POINTS) { ball.ballTrailPoints.pop(); } 
 
             if(ball.isOutside){ball.dy+=gravity;let tFX=0,tFY=0;if(ball.lines.length>0){ball.lines.forEach(l=>{const vX=l.collisionPointX-ball.x,vY=l.collisionPointY-ball.y;const d=Math.sqrt(vX*vX+vY*vY);if(d>0.01){const fM=lineTensionConstant*d;tFX+=(vX/d)*fM;tFY+=(vY/d)*fM;}});}ball.dx+=tFX;ball.dy+=tFY;ball.dx*=dampingFactorOutside;ball.dy*=dampingFactorOutside;ball.x+=ball.dx;ball.y+=ball.dy;const dTC=Math.sqrt((ball.x-boundary.x)**2+(ball.y-boundary.y)**2);if(dTC<boundary.radius-ball.radius && (ball.dx*(ball.x-boundary.x)+ball.dy*(ball.y-boundary.y))<0){ball.isOutside=false;playReentrySound();createSparkles(ball.x,ball.y,'#4F46E5');}}else{ball.dy+=gravity;ball.x+=ball.dx;ball.y+=ball.dy;const dFC=Math.sqrt((ball.x-boundary.x)**2+(ball.y-boundary.y)**2);if(dFC+ball.radius>boundary.radius){const cS=Math.sqrt(ball.dx**2+ball.dy**2);const aTC=Math.atan2(ball.y-boundary.y,ball.x-boundary.x);const iX=boundary.x+Math.cos(aTC)*boundary.radius;const iY=boundary.y+Math.sin(aTC)*boundary.radius;let cLW=defaultLineWidth;if(thickenLinesToggle&&thickenLinesToggle.checked){cLW=1+ball.lines.length*0.025;}
-            let currentLineColor; if (speedLineColorToggle && speedLineColorToggle.checked) { const speedRatio = Math.min(1, Math.max(0, (cS - MIN_CRASH_SPEED_FOR_COLOR) / (MAX_CRASH_SPEED_FOR_COLOR - MIN_CRASH_SPEED_FOR_COLOR))); const hue = 240 - (speedRatio * 240); currentLineColor = hslToRgbString(hue, 100, 60); } else { currentLineColor = gRC(); } 
-            if(cS>breakthroughSpeedThreshold){ball.isOutside=true;playBreakthroughSound();ball.lines.push({collisionPointX:iX,collisionPointY:iY,color:currentLineColor,lineWidth:cLW});createSparkles(iX,iY,'#FFD700');ball.x=boundary.x+Math.cos(aTC)*(boundary.radius+ball.radius*0.1);ball.y=boundary.y+Math.sin(aTC)*(boundary.radius+ball.radius*0.1);}else{playNormalImpactSound(cS);ball.lines.push({collisionPointX:iX,collisionPointY:iY,color:currentLineColor,lineWidth:cLW});createSparkles(iX,iY,currentLineColor);ball.dx*=speedBoostFactor;ball.dy*=speedBoostFactor;ball.x=boundary.x+Math.cos(aTC)*(boundary.radius-ball.radius);ball.y=boundary.y+Math.sin(aTC)*(boundary.radius-ball.radius);const nVX=Math.cos(aTC),nVY=Math.sin(aTC);const dP=ball.dx*nVX+ball.dy*nVY;ball.dx-=2*dP*nVX;ball.dy-=2*dP*nVY;}if(ball.lines.length>300)ball.lines.shift();}}}
+            let currentLineColor = getLineColor(ball, cS); 
+            if(cS>breakthroughSpeedThreshold){
+                ball.isOutside=true;playBreakthroughSound();
+                ball.breakthroughs++; totalBreakthroughs++; updateStatsDisplay(); 
+                ball.lines.push({collisionPointX:iX,collisionPointY:iY,color:currentLineColor,lineWidth:cLW});createSparkles(iX,iY,'#FFD700');ball.x=boundary.x+Math.cos(aTC)*(boundary.radius+ball.radius*0.1);ball.y=boundary.y+Math.sin(aTC)*(boundary.radius+ball.radius*0.1);
+            }else{
+                playNormalImpactSound(cS);
+                ball.bounces++; totalBounces++; updateStatsDisplay(); 
+                ball.lines.push({collisionPointX:iX,collisionPointY:iY,color:currentLineColor,lineWidth:cLW});createSparkles(iX,iY,currentLineColor);ball.dx*=speedBoostFactor;ball.dy*=speedBoostFactor;ball.x=boundary.x+Math.cos(aTC)*(boundary.radius-ball.radius);ball.y=boundary.y+Math.sin(aTC)*(boundary.radius-ball.radius);const nVX=Math.cos(aTC),nVY=Math.sin(aTC);const dP=ball.dx*nVX+ball.dy*nVY;ball.dx-=2*dP*nVX;ball.dy-=2*dP*nVY;
+            }if(ball.lines.length>300)ball.lines.shift();}}}
         
         function handleBallCollisions() {
             for (let i = 0; i < balls.length; i++) {
@@ -379,6 +503,8 @@
 
                     if (distance < minDist) {
                         playNormalImpactSound(Math.sqrt(b1.dx**2 + b1.dy**2) + Math.sqrt(b2.dx**2 + b2.dy**2)); 
+                        totalBallCollisions++; 
+                        updateStatsDisplay(); 
 
                         const nx = dx / distance;
                         const ny = dy / distance;
