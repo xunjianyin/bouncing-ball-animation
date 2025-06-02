@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bouncing Ball with Collapsible Controls & Optional Thick Lines</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; background-color: #111827; margin: 0; overflow: hidden; }
+        #animationCanvas { background-color: #000; border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+        
+        #toggleControlsButton {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 30; /* Above controls panel */
+            background-color: #4F46E5;
+            color: white;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s, left 0.3s ease-in-out;
+        }
+        #toggleControlsButton:hover {
+            background-color: #4338CA;
+        }
+        #toggleControlsButton.hidden {
+            display: none;
+        }
+
+        .controls { 
+            position: absolute; 
+            top: 55px; /* Below the toggle button */
+            left: 10px; 
+            background-color: rgba(40, 40, 50, 0.9); 
+            padding: 15px; 
+            border-radius: 10px; 
+            color: white; 
+            font-size: 0.85em; 
+            z-index: 20; 
+            max-height: calc(100vh - 75px); 
+            overflow-y: auto; 
+            border: 1px solid rgba(255,255,255,0.2);
+            width: 220px; /* Fixed width for the panel */
+            transform: translateX(0%);
+            transition: transform 0.3s ease-in-out;
+        }
+        .controls.collapsed {
+            transform: translateX(-110%); /* Slide out completely */
+        }
+        .controls.hidden { /* Used before audio starts */
+            display: none;
+        }
+
+        .controls label { display: block; margin-bottom: 4px; margin-top: 8px; font-weight: 500;}
+        .controls input[type="range"], .controls select { width: 100%; box-sizing: border-box; background-color: rgba(0,0,0,0.5); color: white; border: 1px solid rgba(255,255,255,0.4); border-radius: 4px; padding: 5px; margin-bottom: 8px;}
+        .controls input[type="checkbox"] { margin-right: 5px; vertical-align: middle;}
+        .controls .checkbox-label { display: inline; font-weight: normal; }
+
+        .controls select option { background-color: #333; color: white; }
+        .controls button { background-color: #4F46E5; color: white; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; margin-top: 15px; width: 100%; transition: background-color 0.2s; }
+        .controls button:hover { background-color: #4338CA; }
+        #startAudioButton { 
+            background-color: #10B981; /* Green */
+            color: white; padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; margin-top: 15px; margin-bottom: 20px; font-size: 1em;
+        }
+        #startAudioButton:hover { background-color: #059669; }
+    </style>
+</head>
+<body class="bg-gray-900 flex flex-col items-center justify-center min-h-screen">
+    <button id="startAudioButton">Start Audio & Animation</button>
+    <button id="toggleControlsButton" class="hidden">Hide Controls</button>
+    <canvas id="animationCanvas"></canvas>
+    <div class="controls hidden"> 
+        <label for="gravitySlider">Gravity: <span id="gravityValue">0.1</span></label>
+        <input type="range" id="gravitySlider" min="0" max="1" step="0.01" value="0.1">
+        
+        <label for="speedBoostSlider">Speed Boost (Inside): <span id="speedBoostValue">1.05</span></label>
+        <input type="range" id="speedBoostSlider" min="1" max="1.5" step="0.01" value="1.05">
+        
+        <label for="volumeSlider">Master Volume: <span id="volumeValue">0.5</span></label>
+        <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.5">
+        
+        <div>
+            <input type="checkbox" id="thickenLinesToggle" checked>
+            <label for="thickenLinesToggle" class="checkbox-label">Lines Get Thicker</label>
+        </div>
+
+        <label for="musicStyleSelect">Music Style:</label>
+        <select id="musicStyleSelect">
+            <option value="cosmicArp">Cosmic Arp</option><option value="ambientPad">Ambient Pad</option><option value="minimalBeat">Minimal Beat</option><option value="none">None</option>
+        </select>
+        
+        <label for="impactSoundSelect">Impact Sound (Inside):</label>
+        <select id="impactSoundSelect">
+            <option value="crispNoise">Crisp Noise</option><option value="metallicHit">Metallic Hit</option><option value="synthBlip">Synth Blip</option><option value="none">None</option>
+        </select>
+
+        <label for="breakthroughSoundSelect">Breakthrough Sound:</label>
+        <select id="breakthroughSoundSelect">
+            <option value="warpingSquare">Warping Square</option><option value="risingPitch">Rising Pitch</option><option value="quickWhoosh">Quick Whoosh</option><option value="none">None</option>
+        </select>
+
+        <label for="reentrySoundSelect">Re-entry Sound:</label>
+        <select id="reentrySoundSelect">
+            <option value="softThump">Soft Thump</option><option value="gentleChime">Gentle Chime</option><option value="subtlePop">Subtle Pop</option><option value="none">None</option>
+        </select>
+
+        <button id="resetButton">Reset Animation</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('animationCanvas');
+        const ctx = canvas.getContext('2d');
+        const controlsDiv = document.querySelector('.controls');
+        const startAudioButton = document.getElementById('startAudioButton');
+        const toggleControlsButton = document.getElementById('toggleControlsButton'); // New button
+        const thickenLinesToggle = document.getElementById('thickenLinesToggle'); // New checkbox
+
+        let animationFrameId;
+        let audioInitialized = false;
+        let masterVolume;
+        let musicSynths = {}, musicLoops = {}, currentMusicStyle = 'cosmicArp';
+        const initialMusicVolumes = { cosmicArp: -18, ambientPad: -22, minimalBeat: -15 };
+        let impactSynths = {}, currentImpactSound = 'crispNoise';
+        let breakthroughSoundSynths = {}, currentBreakthroughSound = 'warpingSquare';
+        let reentrySoundSynths = {}, currentReentrySound = 'softThump';
+
+        const breakthroughSpeedThreshold = 25; 
+        const lineTensionConstant = 0.0005;   
+        const dampingFactorOutside = 0.997;  
+        const defaultLineWidth = 1.5; // For when thickenLines is off
+
+        const MIN_CRASH_SPEED = 2, MAX_CRASH_SPEED = 30, MIN_CRASH_DB = -25, MAX_CRASH_DB = -3;  
+
+        function initAudio() {
+            if (audioInitialized) return;
+            Tone.start().then(() => {
+                console.log("Audio context started.");
+                masterVolume = new Tone.Volume().toDestination(); 
+                uSV(); // updateSliderValues
+
+                // Music Synths & Loops (condensed)
+                musicSynths.cosmicArp = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "fatsawtooth", count: 3, spread: 30 }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.5, release: 0.4 } }).connect(masterVolume); musicSynths.cosmicArp.volume.value = initialMusicVolumes.cosmicArp; const caN = ["C3", "E3", "G3", "B3", "C4", "B3", "G3", "E3"]; let caI = 0; musicLoops.cosmicArp = new Tone.Loop(t => { musicSynths.cosmicArp.triggerAttackRelease(caN[caI % caN.length], "8n", t); caI++; }, "4n");
+                musicSynths.ambientPad = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "amsine", harmonicity: 1.1, modulationType: "sine" }, envelope: { attack: 3, decay: 1, sustain: 0.8, release: 4 } }).connect(masterVolume); musicSynths.ambientPad.volume.value = initialMusicVolumes.ambientPad; const apC = [["C2", "G2", "E3"], ["A1", "E2", "C3"], ["F1", "C2", "A2"], ["D2", "A2", "F3"]]; let apI = 0; musicLoops.ambientPad = new Tone.Loop(t => { musicSynths.ambientPad.triggerAttackRelease(apC[apI % apC.length], "2m", t); apI++; }, "2m");
+                musicSynths.minimalBeat = new Tone.MonoSynth({ oscillator: { type: "pulse", width: 0.2 }, filter: { Q: 1, type: "lowpass", rolloff: -12 }, envelope: { attack: 0.01, decay: 0.05, sustain: 0.1, release: 0.2 }, filterEnvelope: { attack: 0.01, decay: 0.02, sustain: 0.3, release: 0.1, baseFrequency: 300, octaves: 3 } }).connect(masterVolume); musicSynths.minimalBeat.volume.value = initialMusicVolumes.minimalBeat; const mbP = ["C2", null, "C2", null, "G2", "G2", "C2", null]; let mbI = 0; musicLoops.minimalBeat = new Tone.Loop(t => { const n = mbP[mbI % mbP.length]; if (n) musicSynths.minimalBeat.triggerAttackRelease(n, "16n", t); mbI++; }, "8n");
+                
+                // Impact Sound Synths (condensed)
+                impactSynths.crispNoise = new Tone.NoiseSynth({ noise: { type: 'white' }, envelope: { attack: 0.001, decay: 0.05, sustain: 0 } }).connect(masterVolume);
+                impactSynths.metallicHit = new Tone.MetalSynth({ frequency: 150, envelope: { attack: 0.001, decay: 0.1, release: 0.05 }, harmonicity: 3.1, modulationIndex: 16, octaves: 0.5 }).connect(masterVolume);
+                impactSynths.synthBlip = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.1 } }).connect(masterVolume);
+
+                // Breakthrough Sound Options (condensed)
+                breakthroughSoundSynths.warpingSquare = new Tone.Synth({ oscillator: {type: "fmsquare", modulationType : 'triangle', harmonicity : 0.5, modulationIndex : 10}, envelope: {attack: 0.01, decay: 0.3, sustain: 0.1, release: 0.5}, volume: -6 }).connect(masterVolume);
+                breakthroughSoundSynths.risingPitch = new Tone.Synth({ oscillator: { type: "sawtooth" }, envelope: { attack: 0.01, decay: 0.4, sustain: 0, release: 0.1 }, volume: -8 }).connect(masterVolume); 
+                breakthroughSoundSynths.quickWhoosh = new Tone.NoiseSynth({ noise: { type: "pink" }, envelope: { attack: 0.005, decay: 0.2, sustain: 0, release: 0.1 }, volume: -5 }).connect(masterVolume);
+                
+                // Re-entry Sound Options (condensed)
+                reentrySoundSynths.softThump = new Tone.Synth({ oscillator: {type: "triangle8"}, envelope: {attack: 0.05, decay: 0.2, sustain: 0, release: 0.3}, volume: -9 }).connect(masterVolume);
+                reentrySoundSynths.gentleChime = new Tone.MetalSynth({frequency: 400, envelope: { attack: 0.01, decay: 0.5, release: 0.2 }, harmonicity: 5.1, modulationIndex: 8, octaves: 1.5, volume: -12 }).connect(masterVolume);
+                reentrySoundSynths.subtlePop = new Tone.MembraneSynth({ pitchDecay: 0.008, octaves: 2, oscillator: { type: "sine" }, envelope: { attack: 0.001, decay: 0.1, sustain: 0.001, release: 0.01}, volume: -10 }).connect(masterVolume);
+
+                Tone.Transport.bpm.value = 100; Tone.Transport.start(); audioInitialized = true;
+                setMusicStyle(currentMusicStyle); 
+                setImpactSound(currentImpactSound); 
+                setBreakthroughSoundChoice(currentBreakthroughSound); 
+                setReentrySoundChoice(currentReentrySound); 
+
+                startAudioButton.style.display = 'none'; 
+                controlsDiv.classList.remove('hidden'); 
+                toggleControlsButton.classList.remove('hidden'); // Show toggle button for controls
+                rA(); // resetAnimation
+            }).catch(e => { console.error("Error starting Tone.js:", e); startAudioButton.style.display = 'none'; controlsDiv.classList.remove('hidden'); toggleControlsButton.classList.remove('hidden'); rA(); });
+        }
+
+        function setMusicStyle(styleName) { Object.values(musicLoops).forEach(l=>l.stop(0)); Object.keys(musicSynths).forEach(k=>{musicSynths[k].volume.value=-Infinity;}); currentMusicStyle=styleName; document.getElementById('musicStyleSelect').value=styleName; if(styleName!=="none"&&musicLoops[styleName]&&musicSynths[styleName]){musicSynths[styleName].volume.value=initialMusicVolumes[styleName]; musicLoops[styleName].start(0);} console.log("Music set:", styleName); }
+        function setImpactSound(soundName) { currentImpactSound=soundName; document.getElementById('impactSoundSelect').value=soundName; console.log("Impact sound set:", soundName); }
+        function setBreakthroughSoundChoice(soundName) { currentBreakthroughSound = soundName; document.getElementById('breakthroughSoundSelect').value = soundName; console.log("Breakthrough sound set to:", soundName); }
+        function setReentrySoundChoice(soundName) { currentReentrySound = soundName; document.getElementById('reentrySoundSelect').value = soundName; console.log("Re-entry sound set to:", soundName); }
+        
+        function playNormalImpactSound(speed) { if(!audioInitialized||currentImpactSound==="none"||!impactSynths[currentImpactSound])return; const aS=impactSynths[currentImpactSound]; const sR=Math.min(1,Math.max(0,(speed-MIN_CRASH_SPEED)/(MAX_CRASH_SPEED-MIN_CRASH_SPEED))); const dV=MIN_CRASH_DB+sR*(MAX_CRASH_DB-MIN_CRASH_DB); aS.volume.value=dV; if(currentImpactSound==="synthBlip")aS.triggerAttackRelease("C5","32n"); else aS.triggerAttackRelease("16n");}
+        function playBreakthroughSound() { if (!audioInitialized || currentBreakthroughSound === "none" || !breakthroughSoundSynths[currentBreakthroughSound]) return; const activeSynth = breakthroughSoundSynths[currentBreakthroughSound]; switch (currentBreakthroughSound) { case "warpingSquare": activeSynth.triggerAttackRelease("A4", "0.5n"); break; case "risingPitch": activeSynth.triggerAttack("C4"); activeSynth.frequency.rampTo("C6", 0.4); activeSynth.triggerRelease("+0.4"); break; case "quickWhoosh": activeSynth.triggerAttackRelease("0.2n"); break; } }
+        function playReentrySound() { if (!audioInitialized || currentReentrySound === "none" || !reentrySoundSynths[currentReentrySound]) return; const activeSynth = reentrySoundSynths[currentReentrySound]; switch (currentReentrySound) { case "softThump": activeSynth.triggerAttackRelease("G3", "0.3n"); break; case "gentleChime": activeSynth.triggerAttackRelease("C5", "0.5n"); break; case "subtlePop": activeSynth.triggerAttackRelease("C4", "0.1n"); break; } }
+
+        let cW, cH, mCD; function sCD(){cW=window.innerWidth*0.85;cH=window.innerHeight*0.85;mCD=Math.min(cW,cH,650);canvas.width=mCD;canvas.height=mCD;if(boundary){boundary.x=canvas.width/2;boundary.y=canvas.height/2;boundary.radius=canvas.width/2-15;}}
+        const boundary={x:0,y:0,radius:0}; let ball={radius:8,color:'#FFFFFF',x:0,y:0,dx:0,dy:0,isOutside:false}; let lines=[]; let gravity=0.1; let speedBoostFactor=1.05;
+        const gS=document.getElementById('gravitySlider'),gV=document.getElementById('gravityValue'),sBS=document.getElementById('speedBoostSlider'),sBV=document.getElementById('speedBoostValue'),vS=document.getElementById('volumeSlider'),vV=document.getElementById('volumeValue'),mSS=document.getElementById('musicStyleSelect'),iSS=document.getElementById('impactSoundSelect'),bSS=document.getElementById('breakthroughSoundSelect'),rESS=document.getElementById('reentrySoundSelect'),rB=document.getElementById('resetButton');
+        function uSV(){if(gV&&gS){gV.textContent=parseFloat(gS.value).toFixed(2);gravity=parseFloat(gS.value);}if(sBV&&sBS){sBV.textContent=parseFloat(sBS.value).toFixed(2);speedBoostFactor=parseFloat(sBS.value);}if(vV&&vS&&masterVolume){const val=parseFloat(vS.value);vV.textContent=val.toFixed(2);if(val===0)masterVolume.volume.value=-Infinity;else masterVolume.volume.value=Tone.gainToDb(val);}}
+        
+        // Event Listeners
+        if(gS)gS.addEventListener('input',uSV);if(sBS)sBS.addEventListener('input',uSV);if(vS)vS.addEventListener('input',uSV);if(mSS)mSS.addEventListener('change',(e)=>{if(audioInitialized)setMusicStyle(e.target.value);});if(iSS)iSS.addEventListener('change',(e)=>{if(audioInitialized)setImpactSound(e.target.value);});if(bSS)bSS.addEventListener('change',(e)=>{if(audioInitialized)setBreakthroughSoundChoice(e.target.value);});if(rESS)rESS.addEventListener('change',(e)=>{if(audioInitialized)setReentrySoundChoice(e.target.value);});if(rB)rB.addEventListener('click',()=>{if(audioInitialized)rA();});if(startAudioButton)startAudioButton.addEventListener('click',initAudio);
+        if(toggleControlsButton) toggleControlsButton.addEventListener('click', () => {
+            controlsDiv.classList.toggle('collapsed');
+            if (controlsDiv.classList.contains('collapsed')) {
+                toggleControlsButton.textContent = 'Show Controls';
+            } else {
+                toggleControlsButton.textContent = 'Hide Controls';
+            }
+        });
+
+        function gRC(){const r=Math.floor(Math.random()*200+55),g=Math.floor(Math.random()*200+55),b=Math.floor(Math.random()*200+55);return`rgb(${r},${g},${b})`;}
+        function rA(){if(animationFrameId)cancelAnimationFrame(animationFrameId);sCD();ball.x=boundary.x;ball.y=boundary.y;ball.isOutside=false;const iS=2,a=Math.random()*Math.PI*2;ball.dx=Math.cos(a)*iS;ball.dy=Math.sin(a)*iS;lines=[];if(audioInitialized)uSV();animate();}
+        function dB(){ctx.beginPath();ctx.arc(boundary.x,boundary.y,boundary.radius,0,Math.PI*2);ctx.strokeStyle='rgba(255,255,255,0.5)';ctx.lineWidth=2;ctx.stroke();ctx.closePath();}
+        function drB(){ctx.beginPath();ctx.arc(ball.x,ball.y,ball.radius,0,Math.PI*2);ctx.fillStyle=ball.isOutside?'#FFD700':ball.color;ctx.fill();ctx.closePath();}
+        function drL(){lines.forEach(l=>{ctx.beginPath();ctx.moveTo(l.collisionPointX,l.collisionPointY);ctx.lineTo(ball.x,ball.y);ctx.strokeStyle=l.color;ctx.lineWidth=l.lineWidth; ctx.stroke();ctx.closePath();});} // Use stored lineWidth
+        
+        function uBP(){ // updateBallPosition
+            if(ball.isOutside){ball.dy+=gravity;let tFX=0,tFY=0;if(lines.length>0){lines.forEach(l=>{const vX=l.collisionPointX-ball.x,vY=l.collisionPointY-ball.y;const d=Math.sqrt(vX*vX+vY*vY);if(d>0.01){const fM=lineTensionConstant*d;tFX+=(vX/d)*fM;tFY+=(vY/d)*fM;}});}ball.dx+=tFX;ball.dy+=tFY;ball.dx*=dampingFactorOutside;ball.dy*=dampingFactorOutside;ball.x+=ball.dx;ball.y+=ball.dy;const dTC=Math.sqrt((ball.x-boundary.x)**2+(ball.y-boundary.y)**2);if(dTC<boundary.radius-ball.radius){ball.isOutside=false;playReentrySound();console.log("Ball re-entered.");}}else{ball.dy+=gravity;ball.x+=ball.dx;ball.y+=ball.dy;const dFC=Math.sqrt((ball.x-boundary.x)**2+(ball.y-boundary.y)**2);if(dFC+ball.radius>boundary.radius){const cS=Math.sqrt(ball.dx**2+ball.dy**2);const aTC=Math.atan2(ball.y-boundary.y,ball.x-boundary.x);const iX=boundary.x+Math.cos(aTC)*boundary.radius;const iY=boundary.y+Math.sin(aTC)*boundary.radius;
+            
+            // Determine line width based on toggle
+            let currentLineWidth = defaultLineWidth;
+            if (thickenLinesToggle && thickenLinesToggle.checked) {
+                currentLineWidth = 1 + lines.length * 0.05;
+            }
+
+            if(cS>breakthroughSpeedThreshold){ball.isOutside=true;playBreakthroughSound();console.log("Ball broke through!");lines.push({collisionPointX:iX,collisionPointY:iY,color:gRC(),lineWidth:currentLineWidth});ball.x=boundary.x+Math.cos(aTC)*(boundary.radius+ball.radius*0.1);ball.y=boundary.y+Math.sin(aTC)*(boundary.radius+ball.radius*0.1);}else{playNormalImpactSound(cS);lines.push({collisionPointX:iX,collisionPointY:iY,color:gRC(),lineWidth:currentLineWidth});ball.dx*=speedBoostFactor;ball.dy*=speedBoostFactor;ball.x=boundary.x+Math.cos(aTC)*(boundary.radius-ball.radius);ball.y=boundary.y+Math.sin(aTC)*(boundary.radius-ball.radius);const nVX=Math.cos(aTC),nVY=Math.sin(aTC);const dP=ball.dx*nVX+ball.dy*nVY;ball.dx-=2*dP*nVX;ball.dy-=2*dP*nVY;}if(lines.length>200)console.log("Max lines.");}}}
+        
+        function animate(){ctx.clearRect(0,0,canvas.width,canvas.height);dB();drL();drB();uBP();animationFrameId=requestAnimationFrame(animate);}
+        window.addEventListener('resize',()=>{clearTimeout(window.resizedFinished);window.resizedFinished=setTimeout(()=>{if(audioInitialized)rA();else sCD();},250);});
+        sCD(); 
+    </script>
+</body>
+</html>
